@@ -1,0 +1,22 @@
+{
+  "networks": {
+    "ethereum": {
+      "rpc": "https://mainnet.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9",
+      "explorer": "https://etherscan.io/"
+    },
+    "goerli": {
+      "rpc": "https://goerli.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9",
+      "explorer": "https://goerli.etherscan.io/"
+    }
+  },
+  "delays": {
+    "wallet": [
+      60,
+      120
+    ],
+    "trade": [
+      60,
+      120
+    ]
+  }
+}
