@@ -116,3 +116,7 @@ class Trader:
                         self.logger.error(f'Error: {ex}')
             if i < len(self.accounts):
                 self.random_delay(self.config.next_wallet_delay)
+
+
+class StarknetTrader:
+    pass

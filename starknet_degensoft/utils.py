@@ -3,7 +3,7 @@ import logging
 import random
 import colorlog
 from web3 import Web3
-
+from decimal import Decimal
 
 def load_lines(filename):
     with open(filename) as f:
@@ -62,3 +62,20 @@ def get_explorer_address_url(address, base_explorer_url):
 
 def get_explorer_tx_url(tx_hash, base_explorer_url):
     return f'{base_explorer_url}tx/{Web3.to_hex(tx_hash)}'
+
+
+def uniswap_v2_calculate_tokens_and_price(x, y, amount_x, fee=0.003):
+    # Учет комиссии
+    x = Decimal(x)
+    y = Decimal(y)
+    delta_x_prime = Decimal(int(amount_x * (1 - fee)))
+
+    # Обновление количества токенов A и B в пуле после обмена
+    k = x * y
+    x_prime = x + delta_x_prime
+    y_prime = k / x_prime
+
+    # Расчет количества полученных токенов B
+    delta_y = y - y_prime
+
+    return int(delta_y)
