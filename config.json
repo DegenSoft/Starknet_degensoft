@@ -1,12 +1,30 @@
 {
   "networks": {
     "ethereum": {
-      "rpc": "https://mainnet.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9",
+      "rpc": [
+        "https://mainnet.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9"
+      ],
       "explorer": "https://etherscan.io/"
     },
-    "goerli": {
-      "rpc": "https://goerli.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9",
+    "ethereum_goerli": {
+      "rpc": [
+        "https://goerli.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9"
+      ],
       "explorer": "https://goerli.etherscan.io/"
+    },
+    "arbitrum_one": {
+      "rpc": [
+        "https://arb-mainnet-public.unifra.io",
+        "https://arbitrum.blockpi.network/v1/rpc/public"
+      ],
+      "explorer": "https://arbiscan.io/"
+    },
+    "arbitrum_nova": {
+      "rpc": [
+        "https://nova.arbitrum.io/rpc",
+        "https://arbitrum-nova.public.blastapi.io"
+      ],
+      "explorer": "https://nova.arbiscan.io/"
     }
   },
   "delays": {

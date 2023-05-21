@@ -11,8 +11,20 @@ NetworkConfig = namedtuple('NetworkConfig', ('rpc', 'explorer', 'weth_address'))
 Config = namedtuple('Config', ('amount', 'swaps_count', 'buy_delay', 'sell_delay', 'next_wallet_delay'))
 
 
-class Trader:
+class BaseTrader:
+    logger = None
+    IS_DEV = False
 
+    def delay(self, timeout):
+        self.logger.debug(f'Delay for {timeout} sec.')
+        if not self.IS_DEV:
+            time.sleep(timeout)
+
+    def random_delay(self, min_max: tuple):
+        self.delay(random.randint(min_max[0], min_max[1]))
+
+
+class Trader(BaseTrader):
     IS_DEV = False
 
     def __init__(self,
@@ -30,14 +42,6 @@ class Trader:
         self.exchanges = {key: UniswapV2Exchange(self.node, key, exchanges[key]) for key in exchanges}
         self.arbswap = self.exchanges['arbswap']  # default one, todo
         self.tokens = [Erc20Token(self.node, token) for token in tokens]
-
-    def delay(self, timeout):
-        self.logger.debug(f'Delay for {timeout} sec.')
-        if not self.IS_DEV:
-            time.sleep(timeout)
-
-    def random_delay(self, min_max: tuple):
-        self.delay(random.randint(min_max[0], min_max[1]))
 
     def sell_token(self, account: Account, exchange: UniswapV2Exchange, token: Erc20Token, amount: int, delay=None):
         allowance = token.allowance(account.address, exchange.address)
@@ -116,7 +120,3 @@ class Trader:
                         self.logger.error(f'Error: {ex}')
             if i < len(self.accounts):
                 self.random_delay(self.config.next_wallet_delay)
-
-
-class StarknetTrader:
-    pass

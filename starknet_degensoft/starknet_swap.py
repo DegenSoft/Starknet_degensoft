@@ -9,10 +9,10 @@ class BaseSwap:
     _contract_address = '0x0'
     _proxy_config = False
 
-    def __init__(self, account: Account, config: dict = None):
+    def __init__(self, account: Account, eth_contract_address: str):
         self.account = account
-        self.config = config
-        self.eth_contract_address = self.config['starknet_contracts']['ETH']
+        # self.config = config
+        self.eth_contract_address = eth_contract_address
         self.contract = Contract.from_address_sync(address=self._contract_address, provider=self.account,
                                                    proxy_config=self._proxy_config)
 

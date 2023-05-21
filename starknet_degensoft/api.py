@@ -128,6 +128,14 @@ class Account:
         return Web3.from_wei(self.balance_in_wei, 'ether')
 
     @property
+    def web3(self):
+        return self._web3
+
+    @property
+    def node(self):
+        return self._node
+
+    @property
     def balance_in_wei(self):
         return self._web3.eth.get_balance(self.address)
 
