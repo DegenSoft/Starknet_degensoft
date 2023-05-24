@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import requests
 from starknet_degensoft.api import Account, Node
 from starknet_degensoft.utils import load_lines
 from starknet_degensoft.config import Config
 from web3 import Web3
 import random
 import requests
+import time
 
 
 class LayerswapBridge:
@@ -21,7 +21,7 @@ class LayerswapBridge:
             self.BRIDGE_API_URL = 'https://bridge-api-dev.layerswap.cloud'
         else:
             self.IDENTITY_API_URL = 'https://identity-api.layerswap.io'
-            self.BRIDGE_API_URL = 'https://bridge-api.layerswap.cloud'
+            self.BRIDGE_API_URL = 'https://bridge-api.layerswap.io'
         self.testnet = testnet
 
     def _get_authorization_header(self):
@@ -55,12 +55,15 @@ class LayerswapBridge:
         swap_id = r.json()['data']['swap_id']
         return swap_id
 
-    def _get_deposit_address(self, swap_id, auth_header):
+    def _get_swap_status(self, swap_id, auth_header):
         r = requests.get(f'{self.BRIDGE_API_URL}/api/swaps/{swap_id}', headers=auth_header)
         if r.status_code != 200:
             raise RuntimeError(r.json())
-        data = r.json()
-        from_network = data['data']['source_network']
+        return r.json()
+
+    def _get_deposit_address(self, swap_id, auth_header):
+        swap_data = self._get_swap_status(swap_id, auth_header)
+        from_network = swap_data['data']['source_network']
         rd = requests.get(f'{self.BRIDGE_API_URL}/api/deposit_addresses/{from_network}',
                           params={'source': 0}, headers=auth_header)
         rd_data = rd.json()
@@ -68,12 +71,15 @@ class LayerswapBridge:
             raise RuntimeError(rd_data)
         return rd_data['data']['address']
 
-    def deposit(self, account: Account, amount: float, to_l2_address: str):
+    def deposit(self, account: Account, amount: float, to_l2_address: str, wait_for_income_tx=True):
         chain_id = account.web3.eth.chain_id
         try:
             from_network = self.CHAIN_ID_TO_SOURCE_NETWORK[chain_id]
         except KeyError:
             raise ValueError(f'bad source network with chain_id={chain_id}')
+        balance = account.balance
+        if balance < amount:
+            raise ValueError(f'insufficient funds for transfer, balance={balance} ETH, amount={amount} ETH')
         auth_header = self._get_authorization_header()
         to_network = 'STARKNET_MAINNET' if not self.testnet else 'STARKNET_GOERLI'
         swap_id = self._api_swap(from_network=from_network, to_network=to_network, amount=amount,
@@ -83,6 +89,11 @@ class LayerswapBridge:
         tx_hash = account.transfer(to_address=deposit_address, amount=Web3.to_wei(amount, 'ether'))
         tx_receipt = account.web3.eth.wait_for_transaction_receipt(tx_hash)
         print(account.node.get_explorer_transaction_url(tx_hash))
+        # if wait_for_income_tx:
+        #     while True:
+        #         swap_data = self._get_swap_status(swap_id, auth_header)
+        #         print(swap_data)
+        #         time.sleep(30)
         return tx_hash
 
 
@@ -90,14 +101,13 @@ def layerswap_test():
     config = Config()
     config.load('../config.json')
     private_key = load_lines('../private_keys.txt').pop()
-    network = 'ethereum_goerli'
+    network = 'arbitrum_one'
     n = Node(rpc_url=random.choice(config.data['networks'][network]['rpc']),
              explorer_url=config.data['networks'][network]['explorer'])
     a = Account(node=n, private_key=private_key)
     print(n.get_explorer_address_url(a.address))
-    ls = LayerswapBridge(testnet=True)
-    # print(ls._get_access_token())
-    ls.deposit(account=a, amount=0.01,
+    ls = LayerswapBridge(testnet=False)
+    ls.deposit(account=a, amount=0.002,
                to_l2_address='0x01ebcf3b2baa73d0d1946ca25728cb7601462f42589bad517141ce29fbba784c')
 
 
