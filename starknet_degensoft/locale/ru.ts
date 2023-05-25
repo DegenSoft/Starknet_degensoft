@@ -76,6 +76,14 @@
         <translation>Настройки</translation>
     </message>
     <message>
+        <source>Wallet delay</source>
+        <translation>Задержка после кошелька</translation>
+    </message>
+    <message>
+        <source>Project delay</source>
+        <translation>Задержка после проекта</translation>
+    </message>
+    <message>
         <location filename="gui.py" line="132"/>
         <source>min sec:</source>
         <translation>мин сек:</translation>
@@ -89,6 +97,10 @@
         <location filename="gui.py" line="154"/>
         <source>Start</source>
         <translation>Старт</translation>
+    </message>
+    <message>
+        <source>Pause/Continue</source>
+        <translation>Пауза/Продолжить</translation>
     </message>
     <message>
         <location filename="gui.py" line="158"/>

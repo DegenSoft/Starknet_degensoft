@@ -4,53 +4,63 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
     QTextEdit, QStyleFactory, QLabel, QLineEdit, QMenuBar, QMenu, QAction, QWidget, QDesktopWidget, QFileDialog, \
     QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox
 from PyQt5.QtCore import QTranslator, QLocale
+from starknet_degensoft.config import Config
 
 
 class MainWindow(QMainWindow):
+    CONFIG_NAME = 'config1.json'
+    SLAVIK_API_SECRET = ''
+
+    file_name = None
+    log_line = 0
+
+    bridges = {
+        'starkgate': {
+            'name': 'Starkgate',
+            'networks': ['Ethereum']
+        },
+        'layerswap': {
+            'name': 'Layerswap.io',
+            'networks': ['Arbitrum One', 'Arbitrum Nova']
+        }
+    }
+
+    swaps = {
+        'myswap': {'name': 'myswap.xyz'},
+        '10kswap': {'name': '10kswap'},
+        'jediswap': {'name': 'jediswap'},
+    }
+
+    messages = {
+        'window_title': "StarkNet DegenSoft",
+        'language_label': "Language",
+        'api_key_label': "API Key (you can get it via <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
+        'api_key_checkbox': "hide",
+        'private_keys_label': "Ethereum private keys file:",
+        'bridges_label': "Select bridge",
+        'quests_label': "Select quests",
+        'options_label': "Options",
+        'wallet_delay_label': "Wallet delay",
+        'project_delay_label': "Project delay",
+        'wallet_delay_min_sec_label': "min sec:",
+        'project_delay_min_sec_label': "min sec:",
+        'wallet_delay_max_sec_label': "max sec:",
+        'project_delay_max_sec_label': "max sec:",
+        'min_eth_label': "min ETH:",
+        'max_eth_label': "max ETH:",
+        'min_price_label': "min $:",
+        "max_price_label": "max $:",
+        'select_file_button': "Select File",
+        'start_button': "Start",
+        'stop_button': "Stop",
+        'pause_button': "Pause/Continue"
+    }
+
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger('starknet')
-        self.log_line = 0
+        self.config = Config()
         self.logger.setLevel(level=logging.DEBUG)
-        self.bridges = {
-            'starkgate': {
-                'name': 'Starkgate',
-                'networks': ['Ethereum']
-            },
-            'layerswap': {
-                'name': 'Layerswap.io',
-                'networks': ['Arbitrum One', 'Arbitrum Nova']
-            }
-        }
-        self.swaps = {
-            'myswap': {'name': 'myswap.xyz'},
-            '10kswap': {'name': '10kswap'},
-            'jediswap': {'name': 'jediswap'},
-        }
-        self.messages = {
-            'window_title': "StarkNet DegenSoft",
-            'language_label': "Language",
-            'api_key_label': "API Key (you can get it via <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
-            'api_key_checkbox': "hide",
-            'private_keys_label': "Ethereum private keys file:",
-            'bridges_label': "Select bridge",
-            'quests_label': "Select quests",
-            'options_label': "Options",
-            'wallet_delay_label': "Wallet delay",
-            'swap_delay_label': "Swap delay",
-            'min_sec_delay_label': "min sec:",
-            'min_sec_wallet_label': "min sec:",
-            'max_sec_delay_label': "max sec:",
-            'max_sec_wallet_label': "max sec:",
-            'min_eth_label': "min ETH:",
-            'max_eth_label': "max ETH:",
-            'min_price_label': "min $:",
-            "max_price_label": "max $:",
-            'select_file_button': "Select File",
-            'start_button': "Start",
-            'stop_button': "Stop",
-            'pause_button': "Pause/Continue"
-        }
         for bridge_name in self.bridges:
             self.messages[f'min_eth_{bridge_name}_label'] = self.messages['min_eth_label']
             self.messages[f'max_eth_{bridge_name}_label'] = self.messages['max_eth_label']
@@ -65,10 +75,39 @@ class MainWindow(QMainWindow):
         self.load_config()
 
     def load_config(self):
+        self.config.load(self.CONFIG_NAME)
+        for key in self.config.data['gui_config']:
+            value = self.config.data['gui_config'][key]
+            if key not in self.widgets_config:
+                continue
+            widget = self.widgets_config[key]
+            if isinstance(widget, QComboBox):
+                widget.setCurrentIndex(value)
+            elif isinstance(widget, QLineEdit):
+                widget.setText(value)
+            elif isinstance(widget, QCheckBox):
+                widget.setChecked(value)
+            else:
+                widget.setValue(value)
         self.on_bridge_checkbox_clicked()
 
     def save_config(self):
-        pass
+        gui_config = {}
+        for key in self.widgets_config:
+            widget = self.widgets_config[key]
+            if isinstance(widget, QComboBox):
+                value = widget.currentIndex()
+            elif isinstance(widget, QLineEdit):
+                value = widget.text()
+            elif isinstance(widget, QCheckBox):
+                value = widget.isChecked()
+            else:
+                value = widget.value()
+            self.log(f'{key}: {value}')
+            gui_config[key] = value
+        gui_config['file_name'] = self.file_name
+        self.config.gui_config = gui_config
+        self.config.save('config1.json')
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -113,7 +152,6 @@ class MainWindow(QMainWindow):
         layout.addLayout(private_keys_layout)
         self.widgets_tr['private_keys_label'] = private_keys_label
         self.widgets_tr['select_file_button'] = select_file_button
-        self.widgets_config['select_file_button'] = select_file_button
 
         # starknet_seed_layout = QHBoxLayout()
         # self.starknet_seed_label = QLabel("Starknet seed file:")
@@ -152,6 +190,7 @@ class MainWindow(QMainWindow):
             self.widgets_tr[f'min_eth_{key}_label'] = min_label
             self.widgets_tr[f'max_eth_{key}_label'] = max_label
             self.widgets_config[f'bridge_{key}_checkbox'] = bridge_checkbox
+            self.widgets_config[f'bridge_{key}_network'] = bridge_dropdown
             self.widgets_config[f'min_eth_{key}_selector'] = min_eth_selector
             self.widgets_config[f'max_eth_{key}_selector'] = max_eth_selector
             self.bridges[key]['checkbox'] = bridge_checkbox
@@ -195,14 +234,14 @@ class MainWindow(QMainWindow):
         self.widgets_tr['options_label'] = QLabel()
         layout.addWidget(self.widgets_tr['options_label'])
 
-        for option_name in ('wallet_delay', 'swap_delay'):
+        for option_name in ('wallet_delay', 'project_delay'):
             options_layout = QHBoxLayout()
             options_1_label = QLabel()
-            min_option_1_label = QLabel(self.tr('min sec:'))
+            min_option_1_label = QLabel()
             min_option_1_selector = QSpinBox()
             min_option_1_selector.setRange(0, 10000)
             min_option_1_selector.setValue(60)
-            max_option_1_label = QLabel(self.tr('max sec:'))
+            max_option_1_label = QLabel()
             max_option_1_selector = QSpinBox()
             max_option_1_selector.setRange(0, 10000)
             max_option_1_selector.setValue(120)
@@ -215,7 +254,10 @@ class MainWindow(QMainWindow):
             options_layout.setStretch(2, 1)
             options_layout.setStretch(4, 1)
             self.widgets_tr[f'{option_name}_label'] = options_1_label
-            # self.widgets_tr[f'{option_name}_label'] = options_1_label
+            self.widgets_tr[f'{option_name}_min_sec_label'] = min_option_1_label
+            self.widgets_tr[f'{option_name}_max_sec_label'] = max_option_1_label
+            self.widgets_config[f'{option_name}_min_sec'] = min_option_1_selector
+            self.widgets_config[f'{option_name}_max_sec'] = max_option_1_selector
             layout.addLayout(options_layout)
 
         layout.addWidget(QSplitter())
@@ -275,6 +317,7 @@ class MainWindow(QMainWindow):
         self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
 
     def on_start_clicked(self):
+        # todo: check values
         # self.widgets['start_button'].setDisabled(True)
         self.widgets_tr['pause_button'].setDisabled(False)
         # self.widgets['stop_button'].setDisabled(False)
@@ -306,10 +349,14 @@ class MainWindow(QMainWindow):
     def on_open_file_clicked(self):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
-        file_name, _ = QFileDialog.getOpenFileName(self, self.tr("Open File"), "", "All Files (*);;Text Files (*.txt)",
+        file_name, _ = QFileDialog.getOpenFileName(self, "Open File", "", "All Files (*);;Text Files (*.txt)",
                                                    options=options)
         if file_name:
+            self.file_name = file_name
             self.log(f'File selected: {file_name}')
+
+    def closeEvent(self, event):
+        self.save_config()
 
 
 def main():
