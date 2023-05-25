@@ -53,6 +53,14 @@
         <translation>Выберете квесты</translation>
     </message>
     <message>
+        <source>min ETH:</source>
+        <translation>мин ETH:</translation>
+    </message>
+    <message>
+        <source>max ETH:</source>
+        <translation>макс ETH:</translation>
+    </message>
+    <message>
         <location filename="gui.py" line="109"/>
         <source>min $:</source>
         <translation>мин $:</translation>

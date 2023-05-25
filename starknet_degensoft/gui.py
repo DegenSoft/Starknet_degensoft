@@ -10,6 +10,7 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger('starknet')
+        self.log_line = 0
         self.logger.setLevel(level=logging.DEBUG)
         self.bridges = {
             'starkgate': {
@@ -37,23 +38,34 @@ class MainWindow(QMainWindow):
             'options_label': "Options",
             'wallet_delay_label': "Wallet delay",
             'swap_delay_label': "Swap delay",
-            'min_sec': "min $:",
-            'max_sec': "max $:",
-            'min_doll': "min $:",
-            "max_doll": "max $:",
+            'min_sec_delay_label': "min sec:",
+            'min_sec_wallet_label': "min sec:",
+            'max_sec_delay_label': "max sec:",
+            'max_sec_wallet_label': "max sec:",
+            'min_eth_label': "min ETH:",
+            'max_eth_label': "max ETH:",
+            'min_price_label': "min $:",
+            "max_price_label": "max $:",
             'select_file_button': "Select File",
             'start_button': "Start",
             'stop_button': "Stop",
             'pause_button': "Pause/Continue"
         }
-        self.widgets = {}
+        for bridge_name in self.bridges:
+            self.messages[f'min_eth_{bridge_name}_label'] = self.messages['min_eth_label']
+            self.messages[f'max_eth_{bridge_name}_label'] = self.messages['max_eth_label']
+        for swap_name in self.swaps:
+            self.messages[f'min_price_{swap_name}_label'] = self.messages['min_price_label']
+            self.messages[f'max_price_{swap_name}_label'] = self.messages['max_price_label']
+        self.widgets_tr = {}
         self.widgets_config = {}
         self.translator = QTranslator()
         self.init_ui()
         self.retranslate_ui()
+        self.load_config()
 
     def load_config(self):
-        pass
+        self.on_bridge_checkbox_clicked()
 
     def save_config(self):
         pass
@@ -71,7 +83,7 @@ class MainWindow(QMainWindow):
         language_layout.addWidget(language_selector)
         layout.addLayout(language_layout)
         language_selector.setCurrentIndex(1)
-        self.widgets['language_label'] = language_label
+        self.widgets_tr['language_label'] = language_label
         self.widgets_config['language_selector'] = language_selector
 
         api_key_layout = QHBoxLayout()
@@ -86,9 +98,9 @@ class MainWindow(QMainWindow):
         api_key_layout.addWidget(api_key_field)
         api_key_layout.addWidget(api_key_checkbox)
         layout.addLayout(api_key_layout)
-        self.widgets['api_key_label'] = api_key_label
+        self.widgets_tr['api_key_label'] = api_key_label
         self.widgets_config['api_key'] = api_key_field
-        self.widgets['api_key_checkbox'] = api_key_checkbox
+        self.widgets_tr['api_key_checkbox'] = api_key_checkbox
         api_key_checkbox.stateChanged.connect(self.on_hide_checkbox_changed)
         self.widgets_config['api_key_checkbox'] = api_key_checkbox
 
@@ -99,8 +111,8 @@ class MainWindow(QMainWindow):
         select_file_button.clicked.connect(self.on_open_file_clicked)
         private_keys_layout.addWidget(select_file_button)
         layout.addLayout(private_keys_layout)
-        self.widgets['private_keys_label'] = private_keys_label
-        self.widgets['select_file_button'] = select_file_button
+        self.widgets_tr['private_keys_label'] = private_keys_label
+        self.widgets_tr['select_file_button'] = select_file_button
         self.widgets_config['select_file_button'] = select_file_button
 
         # starknet_seed_layout = QHBoxLayout()
@@ -115,93 +127,110 @@ class MainWindow(QMainWindow):
 
         bridges_label = QLabel()
         layout.addWidget(bridges_label)
-        self.widgets['bridges_label'] = bridges_label
+        self.widgets_tr['bridges_label'] = bridges_label
 
-        # for bridge in self.bridges:
-        #     bridge_layout = QHBoxLayout()
-            # bridge['checkbox'] = QCheckBox(bridge['name'])
-            # bridge['checkbox'].setChecked(False)
-            # bridge_layout.addWidget(bridge['checkbox'])
-            # bridge['dropdown'] = QComboBox()
-            # for network in bridge['networks']:
-            #     bridge['dropdown'].addItem(network)
-            # bridge_layout.addWidget(bridge['dropdown'])
-            # min_label = QLabel('min ETH:')
-            # max_label = QLabel('max ETH:')
-            # min_price_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            # max_price_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            # bridge_layout.addWidget(min_label)
-            # bridge_layout.addWidget(min_price_selector)
-            # bridge_layout.addWidget(max_label)
-            # bridge_layout.addWidget(max_price_selector)
-            # bridge_layout.setStretch(0, 1)
-            # bridge_layout.setStretch(1, 1)
-            # layout.addLayout(bridge_layout)
-
-        layout.addWidget(QSplitter())
-
-        self.widgets['quests_label'] = QLabel()
-        layout.addWidget(self.widgets['quests_label'])
-
-        # for swap in self.swaps:
-        #     quest_layout = QHBoxLayout()
-        #     self.checkbox = QCheckBox(swap['name'])
-        #     self.checkbox.setChecked(True)
-        #     quest_layout.addWidget(self.checkbox)
-        #     self.min_price_label = QLabel(self.tr('min $:'))
-        #     quest_layout.addWidget(self.min_price_label)
-        #     self.min_price_selector = QDoubleSpinBox()
-        #     self.min_price_selector.setRange(0, 10000)
-        #     quest_layout.addWidget(self.min_price_selector)
-        #     self.max_price_label = QLabel(self.tr('max $:'))
-        #     quest_layout.addWidget(self.max_price_label)
-        #     self.max_price_selector = QDoubleSpinBox()
-        #     self.max_price_selector.setRange(0, 10000)
-        #     quest_layout.addWidget(self.max_price_selector)
-        #     quest_layout.setStretch(0, 1)
-        #     quest_layout.setStretch(2, 1)
-        #     quest_layout.setStretch(4, 1)
-        #     layout.addLayout(quest_layout)
+        for key in self.bridges:
+            bridge_layout = QHBoxLayout()
+            bridge_checkbox = QCheckBox(self.bridges[key]['name'])
+            # bridge_checkbox.setChecked(False)
+            bridge_checkbox.clicked.connect(self.on_bridge_checkbox_clicked)
+            bridge_layout.addWidget(bridge_checkbox)
+            bridge_dropdown = QComboBox()
+            for network in self.bridges[key]['networks']:
+                bridge_dropdown.addItem(network)
+            bridge_layout.addWidget(bridge_dropdown)
+            min_label = QLabel()
+            max_label = QLabel()
+            min_eth_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+            max_eth_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+            bridge_layout.addWidget(min_label)
+            bridge_layout.addWidget(min_eth_selector)
+            bridge_layout.addWidget(max_label)
+            bridge_layout.addWidget(max_eth_selector)
+            bridge_layout.setStretch(0, 1)
+            bridge_layout.setStretch(1, 1)
+            self.widgets_tr[f'min_eth_{key}_label'] = min_label
+            self.widgets_tr[f'max_eth_{key}_label'] = max_label
+            self.widgets_config[f'bridge_{key}_checkbox'] = bridge_checkbox
+            self.widgets_config[f'min_eth_{key}_selector'] = min_eth_selector
+            self.widgets_config[f'max_eth_{key}_selector'] = max_eth_selector
+            self.bridges[key]['checkbox'] = bridge_checkbox
+            self.bridges[key]['min_eth'] = min_eth_selector
+            self.bridges[key]['max_eth'] = max_eth_selector
+            layout.addLayout(bridge_layout)
 
         layout.addWidget(QSplitter())
+        self.widgets_tr['quests_label'] = QLabel()
+        layout.addWidget(self.widgets_tr['quests_label'])
 
-        self.widgets['options_label'] = QLabel()
-        layout.addWidget(self.widgets['options_label'])
+        for key in self.swaps:
+            quest_layout = QHBoxLayout()
+            swap_checkbox = QCheckBox(self.swaps[key]['name'])
+            swap_checkbox.setChecked(True)
+            quest_layout.addWidget(swap_checkbox)
+            min_price_label = QLabel(self.tr('min $:'))
+            quest_layout.addWidget(min_price_label)
+            min_eth_selector = QDoubleSpinBox()
+            min_eth_selector.setRange(0, 10000)
+            quest_layout.addWidget(min_eth_selector)
+            max_price_label = QLabel(self.tr('max $:'))
+            quest_layout.addWidget(max_price_label)
+            max_eth_selector = QDoubleSpinBox()
+            max_eth_selector.setRange(0, 10000)
+            quest_layout.addWidget(max_eth_selector)
+            quest_layout.setStretch(0, 1)
+            quest_layout.setStretch(2, 1)
+            quest_layout.setStretch(4, 1)
+            self.widgets_tr[f'min_price_{key}_label'] = min_price_label
+            self.widgets_tr[f'max_price_{key}_label'] = max_price_label
+            self.widgets_config[f'min_price_{key}_selector'] = min_eth_selector
+            self.widgets_config[f'max_price_{key}_selector'] = max_eth_selector
+            self.widgets_config[f'swap_{key}_checkbox'] = swap_checkbox
+            self.swaps[key]['checkbox'] = swap_checkbox
+            self.swaps[key]['min_price_selector'] = min_eth_selector
+            self.swaps[key]['max_price_selector'] = max_eth_selector
+            layout.addLayout(quest_layout)
 
-        # for label_name in ('wallet_delay_label', 'swap_delay_label'):
-        #     options_layout = QHBoxLayout()
-        #     options_1_label = QLabel()
-        #     min_option_1_label = QLabel(self.tr('min sec:'))
-        #     min_option_1_selector = QSpinBox()
-        #     min_option_1_selector.setRange(0, 10000)
-        #     min_option_1_selector.setValue(60)
-        #     max_option_1_label = QLabel(self.tr('max sec:'))
-        #     max_option_1_selector = QSpinBox()
-        #     max_option_1_selector.setRange(0, 10000)
-        #     max_option_1_selector.setValue(120)
-        #     options_layout.addWidget(options_1_label)
-        #     options_layout.addWidget(min_option_1_label)
-        #     options_layout.addWidget(min_option_1_selector)
-        #     options_layout.addWidget(max_option_1_label)
-        #     options_layout.addWidget(max_option_1_selector)
-        #     options_layout.setStretch(0, 1)
-        #     options_layout.setStretch(2, 1)
-        #     options_layout.setStretch(4, 1)
-        #     layout.addLayout(options_layout)
+        layout.addWidget(QSplitter())
+        self.widgets_tr['options_label'] = QLabel()
+        layout.addWidget(self.widgets_tr['options_label'])
+
+        for option_name in ('wallet_delay', 'swap_delay'):
+            options_layout = QHBoxLayout()
+            options_1_label = QLabel()
+            min_option_1_label = QLabel(self.tr('min sec:'))
+            min_option_1_selector = QSpinBox()
+            min_option_1_selector.setRange(0, 10000)
+            min_option_1_selector.setValue(60)
+            max_option_1_label = QLabel(self.tr('max sec:'))
+            max_option_1_selector = QSpinBox()
+            max_option_1_selector.setRange(0, 10000)
+            max_option_1_selector.setValue(120)
+            options_layout.addWidget(options_1_label)
+            options_layout.addWidget(min_option_1_label)
+            options_layout.addWidget(min_option_1_selector)
+            options_layout.addWidget(max_option_1_label)
+            options_layout.addWidget(max_option_1_selector)
+            options_layout.setStretch(0, 1)
+            options_layout.setStretch(2, 1)
+            options_layout.setStretch(4, 1)
+            self.widgets_tr[f'{option_name}_label'] = options_1_label
+            # self.widgets_tr[f'{option_name}_label'] = options_1_label
+            layout.addLayout(options_layout)
 
         layout.addWidget(QSplitter())
 
         button_layout = QHBoxLayout()
-        self.widgets['start_button'] = QPushButton()
-        self.widgets['start_button'].clicked.connect(self.on_start_clicked)
-        self.widgets['stop_button'] = QPushButton()
-        self.widgets['stop_button'].clicked.connect(self.on_stop_clicked)
-        self.widgets['pause_button'] = QPushButton()
-        self.widgets['pause_button'].setDisabled(True)
-        self.widgets['pause_button'].clicked.connect(self.on_pause_clicked)
-        button_layout.addWidget(self.widgets['start_button'])
-        button_layout.addWidget(self.widgets['pause_button'])
-        button_layout.addWidget(self.widgets['stop_button'])
+        self.widgets_tr['start_button'] = QPushButton()
+        self.widgets_tr['start_button'].clicked.connect(self.on_start_clicked)
+        self.widgets_tr['stop_button'] = QPushButton()
+        self.widgets_tr['stop_button'].clicked.connect(self.on_stop_clicked)
+        self.widgets_tr['pause_button'] = QPushButton()
+        self.widgets_tr['pause_button'].setDisabled(True)
+        self.widgets_tr['pause_button'].clicked.connect(self.on_pause_clicked)
+        button_layout.addWidget(self.widgets_tr['start_button'])
+        button_layout.addWidget(self.widgets_tr['pause_button'])
+        button_layout.addWidget(self.widgets_tr['stop_button'])
         layout.addLayout(button_layout)
 
         # Add a big text field for logs
@@ -226,25 +255,28 @@ class MainWindow(QMainWindow):
 
     def change_language(self, index):
         languages = ["en", "ru"]
-        self.translator.load(f'locale/{languages[index]}.qm')
-        QApplication.instance().installTranslator(self.translator)
+        lang = languages[index]
+        load_status = self.translator.load(f'starknet_degensoft/locale/{lang}.qm')
+        if load_status:
+            QApplication.instance().installTranslator(self.translator)
         self.retranslate_ui()
 
     def retranslate_ui(self):
         self.setWindowTitle(self.tr(self.messages.get('window_title')))
-        for widget_name in self.widgets:
+        for widget_name in self.widgets_tr:
             if widget_name not in self.messages:
                 continue
             # if widget_name.endswith('_label') or widget_name.endswith('_button'):
-            self.widgets[widget_name].setText(self.tr(self.messages[widget_name]))
+            self.widgets_tr[widget_name].setText(self.tr(self.messages[widget_name]))
 
     def log(self, message):
-        self.log_text_edit.append(message)
+        self.log_line += 1
+        self.log_text_edit.append(f'{self.log_line}. {message}')
         self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
 
     def on_start_clicked(self):
         # self.widgets['start_button'].setDisabled(True)
-        self.widgets['pause_button'].setDisabled(False)
+        self.widgets_tr['pause_button'].setDisabled(False)
         # self.widgets['stop_button'].setDisabled(False)
         self.log('Start button clicked')
 
@@ -259,6 +291,17 @@ class MainWindow(QMainWindow):
     def on_hide_checkbox_changed(self):
         echo_mode = QLineEdit.Password if self.sender().isChecked() else QLineEdit.Normal
         self.widgets_config['api_key'].setEchoMode(echo_mode)
+
+    def on_bridge_checkbox_clicked(self):
+        for key in self.bridges:
+            if self.bridges[key]['checkbox'].isChecked():
+                self._set_swap_checkboxes(disabled=True)
+                return
+        self._set_swap_checkboxes(disabled=False)
+
+    def _set_swap_checkboxes(self, disabled: bool):
+        for key in self.swaps:
+            self.swaps[key]['checkbox'].setDisabled(disabled)
 
     def on_open_file_clicked(self):
         options = QFileDialog.Options()
