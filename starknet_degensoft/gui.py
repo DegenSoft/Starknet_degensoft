@@ -1,10 +1,65 @@
 import sys
+import time
 import logging
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QStyleFactory, QLabel, QLineEdit, QMenuBar, QMenu, QAction, QWidget, QDesktopWidget, QFileDialog, \
     QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox
-from PyQt5.QtCore import QTranslator, QLocale
+from PyQt5.QtCore import QTranslator, QLocale, QThread, pyqtSignal
 from starknet_degensoft.config import Config
+from starknet_degensoft.utils import setup_file_logging, log_formatter
+
+
+class GuiLogHandler(logging.Handler):
+    def __init__(self, callback):
+        super().__init__()
+        self.callback = callback
+
+    def emit(self, record):
+        message = self.format(record)
+        self.callback(message)
+
+    def flush(self):
+        pass
+
+
+def setup_gui_loging(logger, callback, formatter=log_formatter):
+    handler = GuiLogHandler(callback=callback)
+    # formatter = logging.Formatter('%(asctime)s | %(levelname)s | %(message)s')
+    formatter = log_formatter
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+
+
+class TraderThread(QThread):
+    task_completed = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.paused = False
+        self.stopped = False
+        self.logger = logging.getLogger('starknet')
+
+    def run(self):
+        for i in range(30):
+            if self.paused:
+                time.sleep(1)  # Wait for 1 second before checking again
+                continue
+            if self.stopped:
+                break
+            # Simulating some work in each iteration
+            time.sleep(1)
+            self.logger.debug(f"Task iteration {i + 1}")
+            # print(f"Task iteration {i + 1}")
+        self.task_completed.emit()
+
+    def pause(self):
+        self.paused = True
+
+    def stop(self):
+        self.stopped = True
+
+    def resume(self):
+        self.paused = False
 
 
 class MainWindow(QMainWindow):
@@ -13,6 +68,7 @@ class MainWindow(QMainWindow):
 
     file_name = None
     log_line = 0
+    worker_thread = None
 
     bridges = {
         'starkgate': {
@@ -49,7 +105,8 @@ class MainWindow(QMainWindow):
         'min_eth_label': "min ETH:",
         'max_eth_label': "max ETH:",
         'min_price_label': "min $:",
-        "max_price_label": "max $:",
+        'max_price_label': "max $:",
+        'random_checkbox': "Shuffle wallets",
         'select_file_button': "Select File",
         'start_button': "Start",
         'stop_button': "Stop",
@@ -58,9 +115,11 @@ class MainWindow(QMainWindow):
 
     def __init__(self):
         super().__init__()
-        self.logger = logging.getLogger('starknet')
         self.config = Config()
+        self.logger = logging.getLogger('starknet')
         self.logger.setLevel(level=logging.DEBUG)
+        setup_gui_loging(logger=self.logger, callback=self._log)
+        setup_file_logging(logger=self.logger, log_file='default.log')
         for bridge_name in self.bridges:
             self.messages[f'min_eth_{bridge_name}_label'] = self.messages['min_eth_label']
             self.messages[f'max_eth_{bridge_name}_label'] = self.messages['max_eth_label']
@@ -91,7 +150,7 @@ class MainWindow(QMainWindow):
                 widget.setValue(value)
         self.on_bridge_checkbox_clicked()
 
-    def save_config(self):
+    def get_config(self):
         gui_config = {}
         for key in self.widgets_config:
             widget = self.widgets_config[key]
@@ -103,11 +162,10 @@ class MainWindow(QMainWindow):
                 value = widget.isChecked()
             else:
                 value = widget.value()
-            self.log(f'{key}: {value}')
+            self._log(f'{key}: {value}')
             gui_config[key] = value
         gui_config['file_name'] = self.file_name
-        self.config.gui_config = gui_config
-        self.config.save('config1.json')
+        return gui_config
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -260,12 +318,19 @@ class MainWindow(QMainWindow):
             self.widgets_config[f'{option_name}_max_sec'] = max_option_1_selector
             layout.addLayout(options_layout)
 
+        random_checkbox = QCheckBox('Shuffle wallets')
+        self.widgets_config['random_checkbox'] = random_checkbox
+        self.widgets_tr['random_checkbox'] = random_checkbox
+        layout.addWidget(random_checkbox)
+
+
         layout.addWidget(QSplitter())
 
         button_layout = QHBoxLayout()
         self.widgets_tr['start_button'] = QPushButton()
         self.widgets_tr['start_button'].clicked.connect(self.on_start_clicked)
         self.widgets_tr['stop_button'] = QPushButton()
+        self.widgets_tr['stop_button'].setDisabled(True)
         self.widgets_tr['stop_button'].clicked.connect(self.on_stop_clicked)
         self.widgets_tr['pause_button'] = QPushButton()
         self.widgets_tr['pause_button'].setDisabled(True)
@@ -311,25 +376,44 @@ class MainWindow(QMainWindow):
             # if widget_name.endswith('_label') or widget_name.endswith('_button'):
             self.widgets_tr[widget_name].setText(self.tr(self.messages[widget_name]))
 
-    def log(self, message):
+    def _log(self, message):
         self.log_line += 1
         self.log_text_edit.append(f'{self.log_line}. {message}')
         self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
 
     def on_start_clicked(self):
         # todo: check values
-        # self.widgets['start_button'].setDisabled(True)
+        self.widgets_tr['start_button'].setDisabled(True)
         self.widgets_tr['pause_button'].setDisabled(False)
-        # self.widgets['stop_button'].setDisabled(False)
-        self.log('Start button clicked')
+        self.widgets_tr['stop_button'].setDisabled(False)
+        self.logger.info('Start button clicked')
+        self.worker_thread = TraderThread()
+        self.worker_thread.task_completed.connect(self.on_thread_task_completed)
+        self.worker_thread.start()
+
+    def on_thread_task_completed(self):
+        self.widgets_tr['start_button'].setDisabled(False)
+        self.widgets_tr['pause_button'].setDisabled(True)
+        self.widgets_tr['stop_button'].setDisabled(True)
+        self.logger.info('Task completed')
 
     def on_pause_clicked(self):
-        # self.widgets['start_button'].setDisabled(False)
-        # self.widgets['pause_button'].setDisabled(True)
-        self.log('Pause button clicked')
+        # self.widgets_tr['start_button'].setDisabled(True)
+        # self.widgets_tr['pause_button'].setDisabled(True)
+        # self.widgets_tr['stop_button'].setDisabled(True)
+        if not self.worker_thread.paused:
+            self.logger.info('Pause button clicked')
+            self.worker_thread.pause()
+        else:
+            self.logger.info('Continue button clicked')
+            self.worker_thread.resume()
 
     def on_stop_clicked(self):
-        self.log('Stop button clicked')
+        self.widgets_tr['start_button'].setDisabled(False)
+        self.widgets_tr['pause_button'].setDisabled(True)
+        self.widgets_tr['stop_button'].setDisabled(True)
+        self.logger.info('Stop button clicked')
+        self.worker_thread.stop()
 
     def on_hide_checkbox_changed(self):
         echo_mode = QLineEdit.Password if self.sender().isChecked() else QLineEdit.Normal
@@ -353,10 +437,11 @@ class MainWindow(QMainWindow):
                                                    options=options)
         if file_name:
             self.file_name = file_name
-            self.log(f'File selected: {file_name}')
+            self.logger.debug(f'File selected: {file_name}')
 
     def closeEvent(self, event):
-        self.save_config()
+        self.config.gui_config = self.get_config()
+        self.config.save(self.CONFIG_NAME)
 
 
 def main():

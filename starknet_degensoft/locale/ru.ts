@@ -84,6 +84,10 @@
         <translation>Задержка после проекта</translation>
     </message>
     <message>
+        <source>Shuffle wallets</source>
+        <translation>Перемешать кошельки</translation>
+    </message>
+    <message>
         <location filename="gui.py" line="132"/>
         <source>min sec:</source>
         <translation>мин сек:</translation>
