@@ -3,10 +3,23 @@ import time
 import logging
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QStyleFactory, QLabel, QLineEdit, QMenuBar, QMenu, QAction, QWidget, QDesktopWidget, QFileDialog, \
-    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox
+    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox
 from PyQt5.QtCore import QTranslator, QLocale, QThread, pyqtSignal
 from starknet_degensoft.config import Config
 from starknet_degensoft.utils import setup_file_logging, log_formatter
+
+
+class QtSignalLogHandler(logging.Handler):
+    def __init__(self, signal):
+        super().__init__()
+        self.signal = signal
+
+    def emit(self, record):
+        message = self.format(record)
+        self.signal.emit(message)
+
+    def flush(self):
+        pass
 
 
 class GuiLogHandler(logging.Handler):
@@ -32,12 +45,17 @@ def setup_gui_loging(logger, callback, formatter=log_formatter):
 
 class TraderThread(QThread):
     task_completed = pyqtSignal()
+    logger_signal = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
         self.paused = False
         self.stopped = False
         self.logger = logging.getLogger('starknet')
+        self.handler = QtSignalLogHandler(signal=self.logger_signal)
+        # self.handler.setLevel(logging.DEBUG)
+        self.handler.setFormatter(log_formatter)
+        self.logger.addHandler(self.handler)
 
     def run(self):
         for i in range(30):
@@ -51,6 +69,7 @@ class TraderThread(QThread):
             self.logger.debug(f"Task iteration {i + 1}")
             # print(f"Task iteration {i + 1}")
         self.task_completed.emit()
+        self.logger.removeHandler(self.handler)
 
     def pause(self):
         self.paused = True
@@ -92,8 +111,8 @@ class MainWindow(QMainWindow):
         'language_label': "Language",
         'api_key_label': "API Key (you can get it via <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
         'api_key_checkbox': "hide",
-        'private_keys_label': "Ethereum private keys file:",
-        'bridges_label': "Select bridge",
+        'private_keys_label': "Private keys file",
+        'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
         'quests_label': "Select quests",
         'options_label': "Options",
         'wallet_delay_label': "Wallet delay",
@@ -116,10 +135,14 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.config = Config()
-        self.logger = logging.getLogger('starknet')
+        # logging
+        self.logger = logging.getLogger('gui')
         self.logger.setLevel(level=logging.DEBUG)
         setup_gui_loging(logger=self.logger, callback=self._log)
-        setup_file_logging(logger=self.logger, log_file='default.log')
+        startnet_logger = logging.getLogger('starknet')
+        startnet_logger.setLevel(level=logging.DEBUG)
+        for logger in (self.logger, startnet_logger):
+            setup_file_logging(logger=logger, log_file='default.log')
         for bridge_name in self.bridges:
             self.messages[f'min_eth_{bridge_name}_label'] = self.messages['min_eth_label']
             self.messages[f'max_eth_{bridge_name}_label'] = self.messages['max_eth_label']
@@ -148,9 +171,10 @@ class MainWindow(QMainWindow):
                 widget.setChecked(value)
             else:
                 widget.setValue(value)
+        self.file_name = self.config.gui_config.file_name
         self.on_bridge_checkbox_clicked()
 
-    def get_config(self):
+    def get_config(self, check_enabled_widget=False):
         gui_config = {}
         for key in self.widgets_config:
             widget = self.widgets_config[key]
@@ -159,10 +183,13 @@ class MainWindow(QMainWindow):
             elif isinstance(widget, QLineEdit):
                 value = widget.text()
             elif isinstance(widget, QCheckBox):
-                value = widget.isChecked()
+                if check_enabled_widget:
+                    value = widget.isChecked() and widget.isEnabled()
+                else:
+                    value = widget.isChecked()
             else:
                 value = widget.value()
-            self._log(f'{key}: {value}')
+            self._log(f'{key}: {value}')  # todo: remove
             gui_config[key] = value
         gui_config['file_name'] = self.file_name
         return gui_config
@@ -381,14 +408,44 @@ class MainWindow(QMainWindow):
         self.log_text_edit.append(f'{self.log_line}. {message}')
         self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
 
+    def show_error_message(self, message):
+        alert = QMessageBox()
+        alert.setIcon(QMessageBox.Warning)
+        alert.setWindowTitle(self.tr("Error"))
+        alert.setText(message)
+        alert.exec_()
+
     def on_start_clicked(self):
         # todo: check values
+        conf = self.get_config(check_enabled_widget=True)
+        if not conf['api_key']:
+            self.show_error_message(self.tr("You must set API key!"))
+            # todo: test API key
+            return
+        if not conf['file_name']:
+            self.show_error_message(self.tr("You must select file with private keys!"))
+            # todo: check file
+            return
+        for key in self.bridges:
+            if conf[f'bridge_{key}_checkbox'] and not (0 < conf[f'min_eth_{key}_selector'] <= conf[f'max_eth_{key}_selector']):
+                self.show_error_message(self.tr("Minimum ETH amount must be non-zero and less then Maximum ETH amount"))
+                return
+        for key in self.swaps:
+            if conf[f'swap_{key}_checkbox'] and not (0 < conf[f'min_price_{key}_selector'] <= conf[f'max_price_{key}_selector']):
+                self.show_error_message(self.tr("Minimum USD$ amount must be non-zero and less then Maximum USD$ amount"))
+                return
+        for key in ('wallet_delay', 'project_delay'):
+            if conf[f'{key}_min_sec'] != 0 and conf[f'{key}_min_sec'] > conf[f'{key}_max_sec']:
+                self.show_error_message(self.tr("Minimum delay must be less or equal maximum delay"))
+                return
+        # return
         self.widgets_tr['start_button'].setDisabled(True)
         self.widgets_tr['pause_button'].setDisabled(False)
         self.widgets_tr['stop_button'].setDisabled(False)
         self.logger.info('Start button clicked')
         self.worker_thread = TraderThread()
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
+        self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
 
     def on_thread_task_completed(self):

@@ -30,8 +30,8 @@
     </message>
     <message>
         <location filename="gui.py" line="53"/>
-        <source>Ethereum private keys file:</source>
-        <translation>Файл приватных ключей Ethereum:</translation>
+        <source>Private keys file</source>
+        <translation>Файл приватных ключей</translation>
     </message>
     <message>
         <source>Open File</source>
@@ -44,8 +44,8 @@
     </message>
     <message>
         <location filename="gui.py" line="70"/>
-        <source>Select bridge</source>
-        <translation>Выберете мост</translation>
+        <source>Select bridge and source network to transfer ETH to Starknet</source>
+        <translation>Выберете мост и сеть в которой у вас есть ETH для перевода в Starknet</translation>
     </message>
     <message>
         <location filename="gui.py" line="101"/>
@@ -115,6 +115,26 @@
         <location filename="gui.py" line="201"/>
         <source>StarkNet DegenSoft</source>
         <translation>StarkNet Дегенсофт</translation>
+    </message>
+    <message>
+        <source>You must set API key!</source>
+        <translation>Вы должны ввести API ключ!</translation>
+    </message>
+    <message>
+        <source>You must select file with private keys!</source>
+        <translation>Вы должны выбрать файл приватных ключей!</translation>
+    </message>
+    <message>
+        <source>Minimum ETH amount must be non-zero and less then Maximum ETH amount</source>
+        <translation>Минимальная сумма ETH должна быть больше нуля и меньше Максимальной суммы ETH</translation>
+    </message>
+    <message>
+        <source>Minimum USD$ amount must be non-zero and less then Maximum USD$ amount</source>
+        <translation>Минимальная USD$ сумма должна быть больше нуля и меньше максимальной USD$ суммы</translation>
+    </message>
+    <message>
+        <source>Minimum delay must be less or equal maximum delay</source>
+        <translation>Минимальная задержка должна быть меньше или равна максимальной задержке</translation>
     </message>
 </context>
 </TS>
