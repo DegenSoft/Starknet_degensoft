@@ -107,8 +107,7 @@ class StarknetTrader(BaseTrader):
                                             account=account.starknet_account,
                                             amount=random_amount,
                                             token_address=token_address,
-                                            wait_for_tx_sync=True)
-                        self.logger.info(self.get_tx_url(tx_hash))
+                                            wait_for_tx=True)
                     elif isinstance(project['cls'], StarkgateBridge):
                         pass  # todo
                     elif isinstance(project['cls'], LayerswapBridge):
@@ -149,11 +148,14 @@ class StarknetTrader(BaseTrader):
                                  to_l2_address=starknet_account.address)
         return tx_hash.hex()
 
-    def swap(self, swap_cls, account, amount, token_address, wait_for_tx_sync=False):
+    def swap(self, swap_cls, account, amount, token_address, wait_for_tx=False):
         s = swap_cls(account=account, eth_contract_address=self.starknet_eth_contract)
         res = s.swap_eth_to_token(amount=Web3.to_wei(amount, 'ether'),
                                   token_address=token_address,
                                   slippage=self.config.slippage)
-        if wait_for_tx_sync:
-            self.starknet_client.wait_for_tx(res.transaction_hash, wait_for_accept=True)
+        self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
+        if wait_for_tx:
+            self.logger.debug('waiting for tx confirmation...')
+            # self.starknet_client.wait_for_tx_sync(res.transaction_hash, wait_for_accept=True)
+            self.starknet_client.wait_for_tx_sync(res.transaction_hash)
         return hex(res.transaction_hash)
