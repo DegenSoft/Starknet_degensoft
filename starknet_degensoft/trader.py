@@ -13,12 +13,10 @@ Config = namedtuple('Config', ('amount', 'swaps_count', 'buy_delay', 'sell_delay
 
 class BaseTrader:
     logger = None
-    IS_DEV = False
 
     def delay(self, timeout):
         self.logger.debug(f'Delay for {timeout} sec.')
-        if not self.IS_DEV:
-            time.sleep(timeout)
+        time.sleep(timeout)
 
     def random_delay(self, min_max: tuple):
         self.delay(random.randint(min_max[0], min_max[1]))

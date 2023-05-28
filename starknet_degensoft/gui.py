@@ -5,9 +5,12 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
     QTextEdit, QStyleFactory, QLabel, QLineEdit, QMenuBar, QMenu, QAction, QWidget, QDesktopWidget, QFileDialog, \
     QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox
 from PyQt5.QtCore import QTranslator, QLocale, QThread, pyqtSignal
+from starknet_degensoft.starknet_trader import StarknetTrader
 from starknet_degensoft.config import Config
 from starknet_degensoft.utils import setup_file_logging, log_formatter
-
+from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
+from starknet_degensoft.starkgate import StarkgateBridge
+from starknet_degensoft.layerswap import LayerswapBridge
 
 class QtSignalLogHandler(logging.Handler):
     def __init__(self, signal):
@@ -47,10 +50,13 @@ class TraderThread(QThread):
     task_completed = pyqtSignal()
     logger_signal = pyqtSignal(str)
 
-    def __init__(self):
+    def __init__(self, trader, config, swaps, bridges):
         super().__init__()
+        self.trader = trader
+        self.config = config
+        self.swaps = swaps
+        self.bridges = bridges
         self.paused = False
-        self.stopped = False
         self.logger = logging.getLogger('starknet')
         self.handler = QtSignalLogHandler(signal=self.logger_signal)
         # self.handler.setLevel(logging.DEBUG)
@@ -58,26 +64,30 @@ class TraderThread(QThread):
         self.logger.addHandler(self.handler)
 
     def run(self):
-        for i in range(30):
-            if self.paused:
-                time.sleep(1)  # Wait for 1 second before checking again
-                continue
-            if self.stopped:
-                break
-            # Simulating some work in each iteration
-            time.sleep(1)
-            self.logger.debug(f"Task iteration {i + 1}")
-            # print(f"Task iteration {i + 1}")
+        wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
+        swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
+        projects = []
+        for key in self.swaps:
+            if self.config[f'swap_{key}_checkbox']:
+                projects.append(dict(cls=self.swaps[key]['cls'],
+                                     amount_usd=(self.config[f'min_price_{key}_selector'],
+                                                 self.config[f'max_price_{key}_selector'])))
+        # for key in self.bridges:
+        #     if self.config['']
+        self.trader.run(projects=projects, wallet_delay=wallet_delay, project_delay=swap_delay)
         self.task_completed.emit()
         self.logger.removeHandler(self.handler)
 
     def pause(self):
+        self.trader.pause()
         self.paused = True
 
     def stop(self):
-        self.stopped = True
+        self.trader.stop()
+        # self.stopped = True
 
     def resume(self):
+        self.trader.resume()
         self.paused = False
 
 
@@ -92,18 +102,20 @@ class MainWindow(QMainWindow):
     bridges = {
         'starkgate': {
             'name': 'Starkgate',
+            'cls': StarkgateBridge,
             'networks': ['Ethereum']
         },
         'layerswap': {
             'name': 'Layerswap.io',
+            'cls': LayerswapBridge,
             'networks': ['Arbitrum One', 'Arbitrum Nova']
         }
     }
 
     swaps = {
-        'myswap': {'name': 'myswap.xyz'},
-        '10kswap': {'name': '10kswap'},
-        'jediswap': {'name': 'jediswap'},
+        'myswap': {'name': 'myswap.xyz', 'cls': MyswapSwap},
+        '10kswap': {'name': '10kswap', 'cls': TenKSwap},
+        'jediswap': {'name': 'jediswap', 'cls': JediSwap},
     }
 
     messages = {
@@ -155,6 +167,7 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.retranslate_ui()
         self.load_config()
+        self.trader = StarknetTrader(config=self.config, testnet=self.config.testnet)
 
     def load_config(self):
         self.config.load(self.CONFIG_NAME)
@@ -189,7 +202,7 @@ class MainWindow(QMainWindow):
                     value = widget.isChecked()
             else:
                 value = widget.value()
-            self._log(f'{key}: {value}')  # todo: remove
+            # self._log(f'{key}: {value}')
             gui_config[key] = value
         gui_config['file_name'] = self.file_name
         return gui_config
@@ -311,8 +324,8 @@ class MainWindow(QMainWindow):
             self.widgets_config[f'max_price_{key}_selector'] = max_eth_selector
             self.widgets_config[f'swap_{key}_checkbox'] = swap_checkbox
             self.swaps[key]['checkbox'] = swap_checkbox
-            self.swaps[key]['min_price_selector'] = min_eth_selector
-            self.swaps[key]['max_price_selector'] = max_eth_selector
+            self.swaps[key]['min_price'] = min_eth_selector
+            self.swaps[key]['max_price'] = max_eth_selector
             layout.addLayout(quest_layout)
 
         layout.addWidget(QSplitter())
@@ -424,7 +437,11 @@ class MainWindow(QMainWindow):
             return
         if not conf['file_name']:
             self.show_error_message(self.tr("You must select file with private keys!"))
-            # todo: check file
+            return
+        try:
+            self.trader.load_private_keys_csv(conf['file_name'])
+        except Exception as ex:
+            self.show_error_message(self.tr("Failed to load private keys CSV file: ") + str(ex))
             return
         for key in self.bridges:
             if conf[f'bridge_{key}_checkbox'] and not (0 < conf[f'min_eth_{key}_selector'] <= conf[f'max_eth_{key}_selector']):
@@ -443,7 +460,7 @@ class MainWindow(QMainWindow):
         self.widgets_tr['pause_button'].setDisabled(False)
         self.widgets_tr['stop_button'].setDisabled(False)
         self.logger.info('Start button clicked')
-        self.worker_thread = TraderThread()
+        self.worker_thread = TraderThread(trader=self.trader, config=conf, swaps=self.swaps, bridges=self.bridges)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
         self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
@@ -455,9 +472,6 @@ class MainWindow(QMainWindow):
         self.logger.info('Task completed')
 
     def on_pause_clicked(self):
-        # self.widgets_tr['start_button'].setDisabled(True)
-        # self.widgets_tr['pause_button'].setDisabled(True)
-        # self.widgets_tr['stop_button'].setDisabled(True)
         if not self.worker_thread.paused:
             self.logger.info('Pause button clicked')
             self.worker_thread.pause()

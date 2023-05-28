@@ -5,6 +5,7 @@ import colorlog
 from web3 import Web3
 from decimal import Decimal
 
+
 def load_lines(filename):
     with open(filename) as f:
         return [row.strip() for row in f if row and not row.startswith('#')]
