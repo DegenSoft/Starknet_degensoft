@@ -63,8 +63,8 @@
     "min_price_myswap_selector": 20.0,
     "max_price_myswap_selector": 20.0,
     "swap_myswap_checkbox": true,
-    "min_price_10kswap_selector": 2.0,
-    "max_price_10kswap_selector": 8.0,
+    "min_price_10kswap_selector": 7.0,
+    "max_price_10kswap_selector": 16.0,
     "swap_10kswap_checkbox": true,
     "min_price_jediswap_selector": 7.0,
     "max_price_jediswap_selector": 11.0,
@@ -74,6 +74,6 @@
     "project_delay_min_sec": 3,
     "project_delay_max_sec": 3,
     "random_checkbox": true,
-    "file_name": ""
+    "file_name": "/home/arceny/Dropbox/develop/starknet_degensoft/private_keys1.csv"
   }
 }

@@ -42,6 +42,7 @@ class MyswapSwap(BaseSwap):
         '0x03e85bfbb8e2a42b7bead9e88e9a1b19dbccf661471061807292120462396ec9': 2,  # dai
         # todo
     }
+    swap_name = 'myswap'
 
     def swap_eth_to_token(self, amount, token_address='0x0', slippage=2.0):
         try:
@@ -96,6 +97,7 @@ class JediSwap(UniswapForkBaseSwap):
     _contract_address = '0x02bcc885342ebbcbcd170ae6cafa8a4bed22bb993479f49806e72d96af94c965'
     _swap_function_name = 'swap_exact_tokens_for_tokens'
     _amounts_function_name = 'get_amounts_out'
+    swap_name = 'jediswap'
 
 
 class TenKSwap(UniswapForkBaseSwap):
@@ -103,3 +105,4 @@ class TenKSwap(UniswapForkBaseSwap):
     _swap_function_name = 'swapExactTokensForTokens'
     _amounts_function_name = 'getAmountsOut'
     _proxy_config = False
+    swap_name = '10kswap'

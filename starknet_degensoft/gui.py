@@ -92,7 +92,7 @@ class TraderThread(QThread):
 
 
 class MainWindow(QMainWindow):
-    CONFIG_NAME = 'config1.json'
+    CONFIG_NAME = 'config.json'
     SLAVIK_API_SECRET = ''
 
     file_name = None
