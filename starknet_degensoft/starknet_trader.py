@@ -30,8 +30,7 @@ class StarknetTrader(BaseTrader):
         self.stopped = False
         self.testnet = testnet
         self.starknet_client = GatewayClient('testnet' if testnet else 'mainnet')
-        _key = 'goerli' if testnet else 'mainnet'
-        self.starknet_contracts = self.config.data['starknet_contracts'][_key].copy()
+        self.starknet_contracts = self.config.data['starknet_contracts']['goerli' if testnet else 'mainnet'].copy()
         self.starknet_eth_contract = self.starknet_contracts.pop('ETH')
         self.logger = logging.getLogger('starknet')
         self.logger.setLevel(logging.DEBUG)
@@ -40,19 +39,20 @@ class StarknetTrader(BaseTrader):
     def load_private_keys_csv(self, filename):
         accounts = []
         with open(filename) as f:
-            reader = csv.DictReader(f)
-            for line in reader:
-                if 'ethereum_private_key' not in line or 'starknet_address' not in line or \
-                        'starknet_private_key' not in line:
+            for row in csv.DictReader(f):
+                if 'ethereum_private_key' not in row or 'starknet_address' not in row or \
+                        'starknet_private_key' not in row:
                     raise ValueError('bad CSV file format')
-                ethereum_private_key = line['ethereum_private_key'] if line['ethereum_private_key'] else None
+                ethereum_private_key = row['ethereum_private_key'] if row['ethereum_private_key'] else None
                 if ethereum_private_key:
                     eth_account = Web3().eth.account.from_key(ethereum_private_key)  # checking ethereum private key
                     self.logger.debug(f'Loaded account: {eth_account.address}')
                 try:
-                    starknet_account = self.get_account(line['starknet_address'], line['starknet_private_key'])
+                    starknet_account = self.get_account(row['starknet_address'], row['starknet_private_key'])
+                    # starknet_balance = Web3.from_wei(starknet_account.get_balance_sync(), 'ether')
                 except ValueError:
                     raise ValueError('bad Starknet address or private key')
+                # self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)} -> {starknet_balance} ETH')
                 self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)}')
                 accounts.append(TraderAccount(private_key=ethereum_private_key, starknet_account=starknet_account, account=None))
         self.accounts = accounts
@@ -84,6 +84,12 @@ class StarknetTrader(BaseTrader):
         else:
             return f'https://starkscan.co/tx/{tx_hash}'
 
+    def get_address_url(self, address):
+        if self.testnet:
+            return f'https://testnet.starkscan.co/contract/{address}'
+        else:
+            return f'https://starkscan.co/contract/{address}'
+
     def run(self, projects, wallet_delay=(0, 0), project_delay=(0, 0), shuffle=False):
         self.paused = False
         self.stopped = False
@@ -95,31 +101,48 @@ class StarknetTrader(BaseTrader):
                 self.process_pause()
             if self.stopped:
                 break
-            self.logger.info(hex(account.starknet_account.address))
+            balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
+            self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} -> {balance} ETH')
+            self.logger.info(self.get_address_url(hex(account.starknet_account.address)))
+            is_account_deployed = True if account.starknet_account.get_nonce_sync() else False
             for j, project in enumerate(projects, 1):
+                if self.paused:
+                    self.process_pause()
+                if self.stopped:
+                    break
                 try:
                     if issubclass(project['cls'], BaseSwap):
+                        if not is_account_deployed:
+                            self.logger.error('account not deployed yet')
+                            break
                         random_amount = random_float(project['amount_usd'][0] / eth_price,
                                                      project['amount_usd'][1] / eth_price)
                         token_name, token_address = random.choice(list(self.starknet_contracts.items()))
                         self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount} ETH -> {token_name}')
-                        tx_hash = self.swap(swap_cls=project['cls'],
-                                            account=account.starknet_account,
-                                            amount=random_amount,
-                                            token_address=token_address,
-                                            wait_for_tx=True)
-                    elif isinstance(project['cls'], StarkgateBridge):
-                        pass  # todo
-                    elif isinstance(project['cls'], LayerswapBridge):
-                        pass  # todo
+                        self.swap(swap_cls=project['cls'], account=account.starknet_account,
+                                  amount=random_amount, token_address=token_address)
+                    elif issubclass(project['cls'], StarkgateBridge) and account.private_key:
+                        random_amount = random_float(*project['amount'])
+                        self.logger.info(f'Bridge Stargate from {project["network"]} -> {random_amount} ETH')
+                        self.deposit_starkgate(ethereum_private_key=account.private_key,
+                                               starknet_account=account.starknet_account,
+                                               amount=random_amount)
+                    elif issubclass(project['cls'], LayerswapBridge) and account.private_key:
+                        random_amount = random_float(*project['amount'])
+                        self.logger.info(f'Bridge Layerswap from {project["network"]} -> {random_amount} ETH')
+                        self.deposit_layerswap(source_network=project['network'],
+                                               ethereum_private_key=account.private_key,
+                                               starknet_account=account.starknet_account,
+                                               amount=random_amount)
                 except Exception as ex:
                     self.logger.error(ex)
+                    # raise
                 if j < len(projects):
                     self.random_delay(project_delay)
             if i < len(accounts):
                 self.random_delay(wallet_delay)
 
-    def get_account(self, address, private_key):
+    def get_account(self, address, private_key) -> StarknetAccount:
         key_par = KeyPair.from_private_key(key=int(private_key, base=16))
         account = StarknetAccount(
             client=self.starknet_client,
@@ -131,31 +154,40 @@ class StarknetTrader(BaseTrader):
         return account
 
     def setup_account(self, account: StarknetAccount):
-        pass
+        raise NotImplementedError()
 
-    def deposit(self, bridge_cls, source_network, ethereum_private_key, starknet_account, amount):
-        pass
-
-    def starkgate(self, ethereum_private_key, starknet_account, amount):
-        # todo: get RPC from config
-        node = Node(rpc_url='https://goerli.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9',
-                    explorer_url='https://goerli.etherscan.io/')
-        # node = Node(rpc_url='https://mainnet.infura.io/v3/c10b375472774c31abe0d4b295f3f2e9', explorer_url='https://etherscan.io/')
-        bridge = StarkgateBridge(node=node, network='goerli')
+    def deposit_layerswap(self, source_network, ethereum_private_key, starknet_account, amount):
+        if self.testnet:
+            network_config = self.config.data['networks']['ethereum_goerli']
+        else:
+            network_config = self.config.data['networks'][source_network.lower().replace(' ', '_')]
+        node = Node(rpc_url=random.choice(network_config['rpc']), explorer_url=network_config['explorer'])
         account = Account(node=node, private_key=ethereum_private_key)
-        tx_hash = bridge.deposit(account=account,
-                                 amount=amount,
-                                 to_l2_address=starknet_account.address)
+        bridge = LayerswapBridge(testnet=self.testnet)
+        tx_hash = bridge.deposit(account=account, amount=amount, to_l2_address=hex(starknet_account.address))
+        self.logger.info(node.get_explorer_transaction_url(tx_hash))
         return tx_hash.hex()
 
-    def swap(self, swap_cls, account, amount, token_address, wait_for_tx=False):
-        s = swap_cls(account=account, eth_contract_address=self.starknet_eth_contract)
+    def deposit_starkgate(self, ethereum_private_key, starknet_account, amount):
+        network_config = self.config.data['networks']['ethereum_goerli' if self.testnet else 'ethereum']
+        node = Node(rpc_url=random.choice(network_config['rpc']), explorer_url=network_config['explorer'])
+        bridge = StarkgateBridge(node=node, network='testnet' if self.testnet else 'mainnet')
+        account = Account(node=node, private_key=ethereum_private_key)
+        self.logger.info(node.get_explorer_address_url(account.address))
+        tx_hash = bridge.deposit(account=account,
+                                 amount=Web3.to_wei(amount, 'ether'),
+                                 to_l2_address=hex(starknet_account.address))
+        self.logger.info(node.get_explorer_transaction_url(tx_hash))
+        self.logger.info(self.get_tx_url('').replace('/tx/', f'/eth-tx/{tx_hash.hex()}'))
+        return tx_hash.hex()
+
+    def swap(self, swap_cls, account, amount, token_address, wait_for_tx=True):
+        s = swap_cls(account=account, testnet=self.testnet, eth_contract_address=self.starknet_eth_contract)
         res = s.swap_eth_to_token(amount=Web3.to_wei(amount, 'ether'),
                                   token_address=token_address,
                                   slippage=self.config.slippage)
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx:
             self.logger.debug('waiting for tx confirmation...')
-            # self.starknet_client.wait_for_tx_sync(res.transaction_hash, wait_for_accept=True)
-            self.starknet_client.wait_for_tx_sync(res.transaction_hash)
+            self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=3, wait_for_accept=False)
         return hex(res.transaction_hash)

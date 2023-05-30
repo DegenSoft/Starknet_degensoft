@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import logging
+
 from starknet_degensoft.api import Account, Node
 from starknet_degensoft.utils import load_lines
 from starknet_degensoft.config import Config
@@ -23,6 +25,7 @@ class LayerswapBridge:
             self.IDENTITY_API_URL = 'https://identity-api.layerswap.io'
             self.BRIDGE_API_URL = 'https://bridge-api.layerswap.io'
         self.testnet = testnet
+        self.logger = logging.getLogger('starknet')
 
     def _get_authorization_header(self):
         data = {
@@ -84,32 +87,13 @@ class LayerswapBridge:
         to_network = 'STARKNET_MAINNET' if not self.testnet else 'STARKNET_GOERLI'
         swap_id = self._api_swap(from_network=from_network, to_network=to_network, amount=amount,
                                  to_address=to_l2_address, auth_header=auth_header)
-        print(f'https://testnet.layerswap.io/swap/{swap_id}')
+        self.logger.debug(f'https://{"testnet." if self.testnet else ""}layerswap.io/swap/{swap_id}')
         deposit_address = self._get_deposit_address(swap_id, auth_header=auth_header)
         tx_hash = account.transfer(to_address=deposit_address, amount=Web3.to_wei(amount, 'ether'))
         tx_receipt = account.web3.eth.wait_for_transaction_receipt(tx_hash)
-        print(account.node.get_explorer_transaction_url(tx_hash))
         # if wait_for_income_tx:
         #     while True:
         #         swap_data = self._get_swap_status(swap_id, auth_header)
         #         print(swap_data)
         #         time.sleep(30)
         return tx_hash
-
-
-def layerswap_test():
-    config = Config()
-    config.load('../config.json')
-    private_key = load_lines('../private_keys.txt').pop()
-    network = 'arbitrum_one'
-    n = Node(rpc_url=random.choice(config.data['networks'][network]['rpc']),
-             explorer_url=config.data['networks'][network]['explorer'])
-    a = Account(node=n, private_key=private_key)
-    print(n.get_explorer_address_url(a.address))
-    ls = LayerswapBridge(testnet=False)
-    ls.deposit(account=a, amount=0.002,
-               to_l2_address='0x01ebcf3b2baa73d0d1946ca25728cb7601462f42589bad517141ce29fbba784c')
-
-
-if __name__ == '__main__':
-    layerswap_test()

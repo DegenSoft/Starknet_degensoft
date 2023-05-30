@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from starknet_py.net.account.account import Account
+from starknet_py.net.account.account import Account as StarknetAccount
 from starknet_py.contract import Contract
 from starknet_degensoft.utils import uniswap_v2_calculate_tokens_and_price
 from web3 import Web3
@@ -9,9 +9,9 @@ class BaseSwap:
     _contract_address = '0x0'
     _proxy_config = False
 
-    def __init__(self, account: Account, eth_contract_address: str):
+    def __init__(self, account: StarknetAccount, eth_contract_address: str, testnet: bool = False):
         self.account = account
-        # self.config = config
+        self.testnet = testnet
         self.eth_contract_address = eth_contract_address
         self.contract = Contract.from_address_sync(address=self._contract_address, provider=self.account,
                                                    proxy_config=self._proxy_config)
@@ -35,14 +35,30 @@ class BaseSwap:
 
 
 class MyswapSwap(BaseSwap):
-    _contract_address = '0x018a439bcbb1b3535a6145c1dc9bc6366267d923f60a84bd0c7618f33c81d334'
     _proxy_config = True
-    _token_pool_mapping = {
-        '0x005a643907b9a4bc6a55e9069c4fd5fd1f5c79a22470690f75556c4736e34426': 1,  # usdc
-        '0x03e85bfbb8e2a42b7bead9e88e9a1b19dbccf661471061807292120462396ec9': 2,  # dai
-        # todo
-    }
     swap_name = 'myswap'
+
+    @property
+    def _contract_address(self):
+        if self.testnet:
+            return '0x018a439bcbb1b3535a6145c1dc9bc6366267d923f60a84bd0c7618f33c81d334'
+        else:
+            return '0x010884171baf1914edc28d7afb619b40a4051cfae78a094a55d230f19e944a28'  # mainnet
+
+    @property
+    def _token_pool_mapping(self):
+        if self.testnet:
+            return {
+                '0x005a643907b9a4bc6a55e9069c4fd5fd1f5c79a22470690f75556c4736e34426': 1,  # usdc
+                '0x03e85bfbb8e2a42b7bead9e88e9a1b19dbccf661471061807292120462396ec9': 2,  # dai
+            }
+        else:
+            return {
+                '0x068f5c6a61780768455de69077e07e89787839bf8166decfbf92b645209c0fb8': 4,  # usdt
+                '0x053c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8': 1,  # usdc
+                '0x00da114221cb83fa859dbdb4c44beeaa0bb37c7537ad5ae66fe5e0efd20e6eb3': 2,  # dai
+                # '0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac': None,  # wbtc not a valid pool
+            }
 
     def swap_eth_to_token(self, amount, token_address='0x0', slippage=2.0):
         try:
@@ -51,12 +67,14 @@ class MyswapSwap(BaseSwap):
             raise ValueError(f'no such token for myswap: {token_address}')
         self.check_balance(amount)
         pool_data = self.contract.functions['get_pool'].call_sync(pool_id=pool_id, block_number='pending')
+        # print(pool_data)
         amount_to = uniswap_v2_calculate_tokens_and_price(
             x=pool_data.pool['token_b_reserves'],
             y=pool_data.pool['token_a_reserves'],
             amount_x=amount,
             fee=pool_data.pool['fee_percentage'] / 1000 / 100)
         amount_to_min = int(amount_to * (1 - slippage / 100.0))
+        # print(amount_to, amount_to_min)
         approve_prepared_tx = self.get_prepared_approve_tx(amount=amount, token_address=self.eth_contract_address)
         swap_prepared_tx = self.contract.functions['swap'].prepare(
             pool_id=pool_id,
@@ -64,7 +82,8 @@ class MyswapSwap(BaseSwap):
             amount_from=amount,
             amount_to_min=amount_to_min
         )
-        invoke = self.account.sign_invoke_transaction_sync(calls=[approve_prepared_tx, swap_prepared_tx],
+        calls = [approve_prepared_tx, swap_prepared_tx]
+        invoke = self.account.sign_invoke_transaction_sync(calls=calls,
                                                            auto_estimate=True)
         return self.account.client.send_transaction_sync(invoke)
 
@@ -94,15 +113,25 @@ class UniswapForkBaseSwap(BaseSwap):
 
 
 class JediSwap(UniswapForkBaseSwap):
-    _contract_address = '0x02bcc885342ebbcbcd170ae6cafa8a4bed22bb993479f49806e72d96af94c965'
+
     _swap_function_name = 'swap_exact_tokens_for_tokens'
     _amounts_function_name = 'get_amounts_out'
     swap_name = 'jediswap'
 
+    @property
+    def _contract_address(self):
+        return '0x02bcc885342ebbcbcd170ae6cafa8a4bed22bb993479f49806e72d96af94c965' if self.testnet else \
+            '0x041fd22b238fa21cfcf5dd45a8548974d8263b3a531a60388411c5e230f97023'
+
 
 class TenKSwap(UniswapForkBaseSwap):
-    _contract_address = '0x00975910cd99bc56bd289eaaa5cee6cd557f0ddafdb2ce6ebea15b158eb2c664'
+    # _contract_address = '0x00975910cd99bc56bd289eaaa5cee6cd557f0ddafdb2ce6ebea15b158eb2c664'
     _swap_function_name = 'swapExactTokensForTokens'
     _amounts_function_name = 'getAmountsOut'
     _proxy_config = False
     swap_name = '10kswap'
+
+    @property
+    def _contract_address(self):
+        return '0x00975910cd99bc56bd289eaaa5cee6cd557f0ddafdb2ce6ebea15b158eb2c664' if self.testnet else \
+            '0x7a6f98c03379b9513ca84cca1373ff452a7462a3b61598f0af5bb27ad7f76d1'

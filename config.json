@@ -1,5 +1,5 @@
 {
-  "testnet": true,
+  "testnet": false,
   "networks": {
     "ethereum": {
       "rpc": [
@@ -54,26 +54,26 @@
     "api_key_checkbox": true,
     "bridge_starkgate_checkbox": false,
     "bridge_starkgate_network": 0,
-    "min_eth_starkgate_selector": 0.0005,
-    "max_eth_starkgate_selector": 0.0011,
-    "bridge_layerswap_checkbox": false,
+    "min_eth_starkgate_selector": 0.0125,
+    "max_eth_starkgate_selector": 0.0235,
+    "bridge_layerswap_checkbox": true,
     "bridge_layerswap_network": 1,
-    "min_eth_layerswap_selector": 0.0091,
-    "max_eth_layerswap_selector": 0.005,
-    "min_price_myswap_selector": 20.0,
-    "max_price_myswap_selector": 20.0,
+    "min_eth_layerswap_selector": 0.1,
+    "max_eth_layerswap_selector": 0.1,
+    "min_price_myswap_selector": 1.0,
+    "max_price_myswap_selector": 2.0,
     "swap_myswap_checkbox": true,
-    "min_price_10kswap_selector": 7.0,
-    "max_price_10kswap_selector": 16.0,
-    "swap_10kswap_checkbox": true,
-    "min_price_jediswap_selector": 7.0,
-    "max_price_jediswap_selector": 11.0,
-    "swap_jediswap_checkbox": true,
+    "min_price_10kswap_selector": 1.0,
+    "max_price_10kswap_selector": 2.0,
+    "swap_10kswap_checkbox": false,
+    "min_price_jediswap_selector": 1.0,
+    "max_price_jediswap_selector": 2.0,
+    "swap_jediswap_checkbox": false,
     "wallet_delay_min_sec": 5,
     "wallet_delay_max_sec": 7,
-    "project_delay_min_sec": 3,
-    "project_delay_max_sec": 3,
+    "project_delay_min_sec": 5,
+    "project_delay_max_sec": 10,
     "random_checkbox": true,
-    "file_name": "/home/arceny/Dropbox/develop/starknet_degensoft/private_keys1.csv"
+    "file_name": "/home/arceny/Dropbox/develop/starknet_degensoft/private_keys_mainnet.csv"
   }
 }

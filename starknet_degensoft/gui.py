@@ -72,8 +72,11 @@ class TraderThread(QThread):
                 projects.append(dict(cls=self.swaps[key]['cls'],
                                      amount_usd=(self.config[f'min_price_{key}_selector'],
                                                  self.config[f'max_price_{key}_selector'])))
-        # for key in self.bridges:
-        #     if self.config['']
+        for key in self.bridges:
+            if self.config[f'bridge_{key}_checkbox']:
+                bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
+                bridge_amount = (self.config[f'min_eth_{key}_selector'], self.config[f'max_eth_{key}_selector'])
+                projects.append(dict(cls=self.bridges[key]['cls'], network=bridge_network_name, amount=bridge_amount))
         self.trader.run(projects=projects, wallet_delay=wallet_delay, project_delay=swap_delay)
         self.task_completed.emit()
         self.logger.removeHandler(self.handler)
