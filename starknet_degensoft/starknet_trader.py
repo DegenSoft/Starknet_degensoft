@@ -17,6 +17,7 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.config import Config
 from starknet_degensoft.trader import BaseTrader
 from starknet_degensoft.utils import random_float
+from starknet_degensoft.api_client2 import DegenSoftApiClient
 
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_account',
@@ -29,7 +30,8 @@ class StarknetTrader(BaseTrader):
         self.paused = False
         self.stopped = False
         self.testnet = testnet
-        self.starknet_client = GatewayClient('testnet' if testnet else 'mainnet')
+        self.starknet_client = GatewayClient('testnet' if testnet else
+                                             random.choice(self.config.networks.starknet.rpc))
         self.starknet_contracts = self.config.data['starknet_contracts']['goerli' if testnet else 'mainnet'].copy()
         self.starknet_eth_contract = self.starknet_contracts.pop('ETH')
         self.logger = logging.getLogger('starknet')
@@ -66,10 +68,12 @@ class StarknetTrader(BaseTrader):
     def stop(self):
         self.stopped = True
 
-    def process_pause(self):
-        while 1:
+    def process_pause(self, sec=None):
+        while range(sec) if sec else 1:
             time.sleep(1)
             if not self.paused:
+                break
+            if self.stopped:
                 break
 
     @staticmethod
@@ -90,56 +94,80 @@ class StarknetTrader(BaseTrader):
         else:
             return f'https://starkscan.co/contract/{address}'
 
-    def run(self, projects, wallet_delay=(0, 0), project_delay=(0, 0), shuffle=False):
+    def _run_project(self, project, account):
+        eth_price = self.get_eth_price()
+        if issubclass(project['cls'], BaseSwap):
+            random_amount = random_float(project['amount_usd'][0] / eth_price,
+                                         project['amount_usd'][1] / eth_price)
+            token_name, token_address = random.choice(list(self.starknet_contracts.items()))
+            if project['cls'] == MyswapSwap and not self.testnet:
+                token_name = 'DAI'  # only DAI for myswap.xyz for now
+                token_address = self.starknet_contracts[token_name]
+            self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount} ETH -> {token_name}')
+            self.swap(swap_cls=project['cls'], account=account.starknet_account,
+                      amount=random_amount, token_address=token_address)
+        elif (project['cls'] == StarkgateBridge) and account.private_key:
+            random_amount = random_float(*project['amount'])
+            self.logger.info(f'Bridge Stargate from {project["network"]} -> {random_amount} ETH')
+            self.deposit_starkgate(ethereum_private_key=account.private_key,
+                                   starknet_account=account.starknet_account,
+                                   amount=random_amount)
+        elif (project['cls'] == LayerswapBridge) and account.private_key:
+            random_amount = random_float(*project['amount'])
+            self.logger.info(f'Bridge Layerswap from {project["network"]} -> {random_amount} ETH')
+            self.deposit_layerswap(source_network=project['network'],
+                                   ethereum_private_key=account.private_key,
+                                   starknet_account=account.starknet_account,
+                                   amount=random_amount)
+
+    def run(self, projects, wallet_delay=(0, 0), project_delay=(0, 0), shuffle=False, api: DegenSoftApiClient = None):
         self.paused = False
         self.stopped = False
-        accounts = random.shuffle(self.accounts) if shuffle else self.accounts
-        eth_price = self.get_eth_price()
-        self.logger.info(f'Ethereum price: {eth_price}$')
-        for i, account in enumerate(accounts, 1):
+        if shuffle:
+            random.shuffle(self.accounts)
+        self.logger.info(f'Ethereum price: {self.get_eth_price()}$')
+        for i, account in enumerate(self.accounts, 1):
             if self.paused:
                 self.process_pause()
             if self.stopped:
                 break
             balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
+            starknet_address = hex(account.starknet_account.address)
             self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} -> {balance} ETH')
-            self.logger.info(self.get_address_url(hex(account.starknet_account.address)))
+            self.logger.info(self.get_address_url(starknet_address))
             is_account_deployed = True if account.starknet_account.get_nonce_sync() else False
             for j, project in enumerate(projects, 1):
                 if self.paused:
                     self.process_pause()
                 if self.stopped:
                     break
-                try:
-                    if issubclass(project['cls'], BaseSwap):
-                        if not is_account_deployed:
-                            self.logger.error('account not deployed yet')
-                            break
-                        random_amount = random_float(project['amount_usd'][0] / eth_price,
-                                                     project['amount_usd'][1] / eth_price)
-                        token_name, token_address = random.choice(list(self.starknet_contracts.items()))
-                        self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount} ETH -> {token_name}')
-                        self.swap(swap_cls=project['cls'], account=account.starknet_account,
-                                  amount=random_amount, token_address=token_address)
-                    elif issubclass(project['cls'], StarkgateBridge) and account.private_key:
-                        random_amount = random_float(*project['amount'])
-                        self.logger.info(f'Bridge Stargate from {project["network"]} -> {random_amount} ETH')
-                        self.deposit_starkgate(ethereum_private_key=account.private_key,
-                                               starknet_account=account.starknet_account,
-                                               amount=random_amount)
-                    elif issubclass(project['cls'], LayerswapBridge) and account.private_key:
-                        random_amount = random_float(*project['amount'])
-                        self.logger.info(f'Bridge Layerswap from {project["network"]} -> {random_amount} ETH')
-                        self.deposit_layerswap(source_network=project['network'],
-                                               ethereum_private_key=account.private_key,
-                                               starknet_account=account.starknet_account,
-                                               amount=random_amount)
-                except Exception as ex:
-                    self.logger.error(ex)
-                    # raise
+                if issubclass(project['cls'], BaseSwap) and not is_account_deployed:
+                    self.logger.error('account not deployed yet')
+                    break
+                action = 'swap' if issubclass(project['cls'], BaseSwap) else 'bridge'
+                while 1:
+                    if self.paused:
+                        self.process_pause()
+                    if self.stopped:
+                        break
+                    try:
+                        resp = api.new_action(action, starknet_address)
+                        if resp['success']:
+                            try:
+                                self._run_project(project, account)
+                            except Exception as ex:
+                                self.logger.error(ex)
+                                api.cancel_last_action()
+                        else:
+                            self.logger.error('API error: %s' % resp)
+                        break
+                    except Exception as ex:
+                        self.logger.error('API error: %s' % ex)
+                        self.logger.error('Retry in 60 sec.')
+                        self.process_pause(60)
                 if j < len(projects):
                     self.random_delay(project_delay)
-            if i < len(accounts):
+            if i < len(self.accounts):
                 self.random_delay(wallet_delay)
 
     def get_account(self, address, private_key) -> StarknetAccount:

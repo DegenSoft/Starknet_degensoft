@@ -11,6 +11,8 @@ from starknet_degensoft.utils import setup_file_logging, log_formatter
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.layerswap import LayerswapBridge
+from starknet_degensoft.api_client2 import DegenSoftApiClient, DegenSoftApiError
+
 
 class QtSignalLogHandler(logging.Handler):
     def __init__(self, signal):
@@ -50,8 +52,9 @@ class TraderThread(QThread):
     task_completed = pyqtSignal()
     logger_signal = pyqtSignal(str)
 
-    def __init__(self, trader, config, swaps, bridges):
+    def __init__(self, api, trader, config, swaps, bridges):
         super().__init__()
+        self.api = api
         self.trader = trader
         self.config = config
         self.swaps = swaps
@@ -67,6 +70,7 @@ class TraderThread(QThread):
         wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
         swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
         projects = []
+        # print(self.config)
         for key in self.swaps:
             if self.config[f'swap_{key}_checkbox']:
                 projects.append(dict(cls=self.swaps[key]['cls'],
@@ -77,7 +81,9 @@ class TraderThread(QThread):
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
                 bridge_amount = (self.config[f'min_eth_{key}_selector'], self.config[f'max_eth_{key}_selector'])
                 projects.append(dict(cls=self.bridges[key]['cls'], network=bridge_network_name, amount=bridge_amount))
-        self.trader.run(projects=projects, wallet_delay=wallet_delay, project_delay=swap_delay)
+        self.trader.run(projects=projects, wallet_delay=wallet_delay,
+                        project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
+                        api=self.api)
         self.task_completed.emit()
         self.logger.removeHandler(self.handler)
 
@@ -140,7 +146,7 @@ class MainWindow(QMainWindow):
         'max_eth_label': "max ETH:",
         'min_price_label': "min $:",
         'max_price_label': "max $:",
-        'random_checkbox': "Shuffle wallets",
+        'shuffle_checkbox': "Shuffle wallets",
         'select_file_button': "Select File",
         'start_button': "Start",
         'stop_button': "Stop",
@@ -361,10 +367,10 @@ class MainWindow(QMainWindow):
             self.widgets_config[f'{option_name}_max_sec'] = max_option_1_selector
             layout.addLayout(options_layout)
 
-        random_checkbox = QCheckBox('Shuffle wallets')
-        self.widgets_config['random_checkbox'] = random_checkbox
-        self.widgets_tr['random_checkbox'] = random_checkbox
-        layout.addWidget(random_checkbox)
+        shuffle_checkbox = QCheckBox('Shuffle wallets')
+        self.widgets_config['shuffle_checkbox'] = shuffle_checkbox
+        self.widgets_tr['shuffle_checkbox'] = shuffle_checkbox
+        layout.addWidget(shuffle_checkbox)
 
 
         layout.addWidget(QSplitter())
@@ -432,11 +438,18 @@ class MainWindow(QMainWindow):
         alert.exec_()
 
     def on_start_clicked(self):
-        # todo: check values
         conf = self.get_config(check_enabled_widget=True)
+        self.logger.info('Start button clicked')
         if not conf['api_key']:
             self.show_error_message(self.tr("You must set API key!"))
-            # todo: test API key
+            return
+        try:
+            degensoft_api = DegenSoftApiClient(api_key=conf['api_key'])
+            user_info = degensoft_api.get_userinfo()
+            self.logger.info(f'API Username: {user_info["user"]}, Points: {user_info["points"]}, '
+                             f'Premium points: {user_info["prem_points"]}')
+        except Exception as ex:
+            self.show_error_message(self.tr("Bad API key or API error: ") + str(ex))
             return
         if not conf['file_name']:
             self.show_error_message(self.tr("You must select file with private keys!"))
@@ -462,8 +475,8 @@ class MainWindow(QMainWindow):
         self.widgets_tr['start_button'].setDisabled(True)
         self.widgets_tr['pause_button'].setDisabled(False)
         self.widgets_tr['stop_button'].setDisabled(False)
-        self.logger.info('Start button clicked')
-        self.worker_thread = TraderThread(trader=self.trader, config=conf, swaps=self.swaps, bridges=self.bridges)
+        self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api, config=conf,
+                                          swaps=self.swaps, bridges=self.bridges)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
         self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
