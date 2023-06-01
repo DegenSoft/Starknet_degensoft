@@ -172,7 +172,11 @@ class StarknetTrader(BaseTrader):
                 self.random_delay(wallet_delay)
 
     def get_account(self, address, private_key) -> StarknetAccount:
-        key_par = KeyPair.from_private_key(key=int(private_key, base=16))
+        try:
+            _key = int(private_key)
+        except Exception:
+            _key = int(private_key, base=16)
+        key_par = KeyPair.from_private_key(key=_key)
         account = StarknetAccount(
             client=self.starknet_client,
             address=address,
