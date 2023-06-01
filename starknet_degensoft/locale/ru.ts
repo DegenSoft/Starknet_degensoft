@@ -145,8 +145,8 @@
         <translation>Ошибка</translation>
     </message>
     <message>
-        <source>Bad API key or API error:</source>
-        <translation>Неправильный ключ API или ошибка API:</translation>
+        <source>Bad API key or API error: </source>
+        <translation>Неправильный ключ API или ошибка API: </translation>
     </message>
     <message>
         <source>Failed to load private keys CSV file: </source>
