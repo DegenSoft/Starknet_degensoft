@@ -20,8 +20,7 @@ from starknet_degensoft.utils import random_float
 from starknet_degensoft.api_client2 import DegenSoftApiClient
 
 
-TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_account',
-                                                         'account'))
+TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_account'))
 
 
 class StarknetTrader(BaseTrader):
@@ -56,7 +55,7 @@ class StarknetTrader(BaseTrader):
                     raise ValueError('bad Starknet address or private key')
                 # self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)} -> {starknet_balance} ETH')
                 self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)}')
-                accounts.append(TraderAccount(private_key=ethereum_private_key, starknet_account=starknet_account, account=None))
+                accounts.append(TraderAccount(private_key=ethereum_private_key, starknet_account=starknet_account))
         self.accounts = accounts
 
     def pause(self):
@@ -94,7 +93,7 @@ class StarknetTrader(BaseTrader):
         else:
             return f'https://starkscan.co/contract/{address}'
 
-    def _run_project(self, project, account):
+    def _run_project(self, project, account, is_last_project=False):
         eth_price = self.get_eth_price()
         if issubclass(project['cls'], BaseSwap):
             random_amount = random_float(project['amount_usd'][0] / eth_price,
@@ -105,7 +104,8 @@ class StarknetTrader(BaseTrader):
                 token_address = self.starknet_contracts[token_name]
             self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount} ETH -> {token_name}')
             self.swap(swap_cls=project['cls'], account=account.starknet_account,
-                      amount=random_amount, token_address=token_address)
+                      amount=random_amount, token_address=token_address,
+                      wait_for_tx=True if not is_last_project else False)
         elif (project['cls'] == StarkgateBridge) and account.private_key:
             random_amount = random_float(*project['amount'])
             self.logger.info(f'Bridge Stargate from {project["network"]} -> {random_amount} ETH')
@@ -154,7 +154,8 @@ class StarknetTrader(BaseTrader):
                         resp = api.new_action(action, starknet_address)
                         if resp['success']:
                             try:
-                                self._run_project(project, account)
+                                is_last_project = True if j == len(projects) else False
+                                self._run_project(project, account, is_last_project=is_last_project)
                             except Exception as ex:
                                 self.logger.error(ex)
                                 api.cancel_last_action()

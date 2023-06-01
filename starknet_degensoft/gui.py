@@ -1,3 +1,4 @@
+import random
 import sys
 import time
 import logging
@@ -76,6 +77,9 @@ class TraderThread(QThread):
                 projects.append(dict(cls=self.swaps[key]['cls'],
                                      amount_usd=(self.config[f'min_price_{key}_selector'],
                                                  self.config[f'max_price_{key}_selector'])))
+        if self.config['random_swap_checkbox']:
+            random.shuffle(projects)
+            projects = projects[:1]
         for key in self.bridges:
             if self.config[f'bridge_{key}_checkbox']:
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
@@ -142,6 +146,7 @@ class MainWindow(QMainWindow):
         'project_delay_min_sec_label': "min sec:",
         'wallet_delay_max_sec_label': "max sec:",
         'project_delay_max_sec_label': "max sec:",
+        'random_swap_checkbox': "Random project",
         'min_eth_label': "min ETH:",
         'max_eth_label': "max ETH:",
         'min_price_label': "min $:",
@@ -336,6 +341,11 @@ class MainWindow(QMainWindow):
             self.swaps[key]['min_price'] = min_eth_selector
             self.swaps[key]['max_price'] = max_eth_selector
             layout.addLayout(quest_layout)
+
+        random_swap_checkbox = QCheckBox()
+        self.widgets_tr['random_swap_checkbox'] = random_swap_checkbox
+        self.widgets_config['random_swap_checkbox'] = random_swap_checkbox
+        layout.addWidget(random_swap_checkbox)
 
         layout.addWidget(QSplitter())
         self.widgets_tr['options_label'] = QLabel()

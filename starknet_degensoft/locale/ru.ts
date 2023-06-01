@@ -136,5 +136,21 @@
         <source>Minimum delay must be less or equal maximum delay</source>
         <translation>Минимальная задержка должна быть меньше или равна максимальной задержке</translation>
     </message>
+    <message>
+        <source>Random project</source>
+        <translation>Рандомный проект</translation>
+    </message>
+    <message>
+        <source>Error</source>
+        <translation>Ошибка</translation>
+    </message>
+    <message>
+        <source>Bad API key or API error:</source>
+        <translation>Неправильный ключ API или ошибка API:</translation>
+    </message>
+    <message>
+        <source>Failed to load private keys CSV file: </source>
+        <translation>Не удалось загрузить CSV файл приватных ключей: </translation>
+    </message>
 </context>
 </TS>

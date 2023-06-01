@@ -47,7 +47,6 @@
     },
     "goerli": {
       "ETH": "0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7",
-      "USDT": "0x0386e8d061177f19b3b485c20e31137e6f6bc497cc635ccdfcab96fadf5add6a",
       "USDC": "0x005a643907b9a4bc6a55e9069c4fd5fd1f5c79a22470690f75556c4736e34426",
       "DAI": "0x03e85bfbb8e2a42b7bead9e88e9a1b19dbccf661471061807292120462396ec9",
       "WBTC": "0x012d537dc323c439dc65c976fad242d5610d27cfb5f31689a0a319b8be7f3d56"
@@ -56,8 +55,8 @@
   "slippage": 2,
   "gui_config": {
     "language_selector": 0,
-    "api_key": "8JN4HZS46MB",
-    "api_key_checkbox": false,
+    "api_key": "",
+    "api_key_checkbox": true,
     "bridge_starkgate_checkbox": false,
     "bridge_starkgate_network": 0,
     "min_eth_starkgate_selector": 0.0125,
@@ -68,18 +67,19 @@
     "max_eth_layerswap_selector": 0.02,
     "min_price_myswap_selector": 1.0,
     "max_price_myswap_selector": 2.0,
-    "swap_myswap_checkbox": false,
+    "swap_myswap_checkbox": true,
     "min_price_10kswap_selector": 1.0,
     "max_price_10kswap_selector": 2.0,
     "swap_10kswap_checkbox": true,
     "min_price_jediswap_selector": 1.0,
     "max_price_jediswap_selector": 2.0,
-    "swap_jediswap_checkbox": false,
+    "swap_jediswap_checkbox": true,
+    "random_swap_checkbox": true,
     "wallet_delay_min_sec": 5,
     "wallet_delay_max_sec": 7,
     "project_delay_min_sec": 5,
     "project_delay_max_sec": 10,
     "shuffle_checkbox": true,
-    "file_name": "private_keys_mainnet.csv"
+    "file_name": "private_keys.csv"
   }
 }

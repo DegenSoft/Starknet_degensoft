@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 from starknet_py.net.account.account import Account as StarknetAccount
 from starknet_py.net.gateway_client import GatewayClient
 from starknet_py.net.models.chains import StarknetChainId
@@ -7,10 +8,11 @@ from web3 import Web3
 
 ADDRESS = '0x01ebcf3b2baa73d0d1946ca25728cb7601462f42589bad517141ce29fbba784c'
 PRIVATE_KEY = '0x0382183af99c507c16d9662c1ae18cf584574c73cdf76468b0c761520188d06c'
+NETWORK = 'testnet'
 
 
 def test_starknet_py():
-    node = GatewayClient('testnet')
+    node = GatewayClient(NETWORK)
     key_par = KeyPair.from_private_key(key=int(PRIVATE_KEY, base=16))
     account = StarknetAccount(
         client=node,
@@ -25,4 +27,5 @@ def test_starknet_py():
 
 
 if __name__ == '__main__':
+    logging.basicConfig(level=logging.DEBUG)
     test_starknet_py()
