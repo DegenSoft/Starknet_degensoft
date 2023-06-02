@@ -112,12 +112,14 @@ class MyQTextEdit(QTextEdit):
         self.anchor = self.anchorAt(e.pos())
         if self.anchor:
             QApplication.setOverrideCursor(Qt.PointingHandCursor)
+        super().mousePressEvent(e)
 
     def mouseReleaseEvent(self, e):
         if self.anchor:
             QDesktopServices.openUrl(QUrl(self.anchor))
-            QApplication.setOverrideCursor(Qt.ArrowCursor)
+            QApplication.setOverrideCursor(Qt.IBeamCursor)
             self.anchor = None
+        super().mouseReleaseEvent(e)
 
 
 class MainWindow(QMainWindow):
@@ -416,13 +418,12 @@ class MainWindow(QMainWindow):
         layout.addLayout(button_layout)
 
         # Add a big text field for logs
+        self.log_text_edit = MyQTextEdit()
         # self.log_text_edit = QTextEdit()
-        self.log_text_edit = QTextBrowser()
-        self.log_text_edit.setOpenLinks(False)
-        self.log_text_edit.anchorClicked.connect(self.handle_links)
+        # self.log_text_edit = QTextBrowser()
+        # self.log_text_edit.setOpenLinks(False)
+        # self.log_text_edit.anchorClicked.connect(self.handle_links)
 
-        # self.log_text_edit = MyQTextEdit()
-        # self.log_text_edit.setTextInteractionFlags(QTextEdit.__flags__.Q)
         self.log_text_edit.setReadOnly(True)
         layout.addWidget(self.log_text_edit)
 

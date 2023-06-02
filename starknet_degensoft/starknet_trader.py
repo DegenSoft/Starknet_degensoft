@@ -70,7 +70,7 @@ class StarknetTrader(BaseTrader):
         self.stopped = True
 
     def process_pause(self, sec=None):
-        while range(sec) if sec else 1:
+        for i in range(sec) if sec else 1:
             time.sleep(1)
             if not self.paused:
                 break
