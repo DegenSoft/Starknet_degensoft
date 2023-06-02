@@ -40,7 +40,9 @@ class StarknetTrader(BaseTrader):
     def load_private_keys_csv(self, filename):
         accounts = []
         with open(filename) as f:
-            for row in csv.DictReader(f):
+            dialect = csv.Sniffer().sniff(f.read(1024), delimiters=";,")
+            f.seek(0)
+            for row in csv.DictReader(f, dialect=dialect):
                 if 'ethereum_private_key' not in row or 'starknet_address' not in row or \
                         'starknet_private_key' not in row:
                     raise ValueError('bad CSV file format')
