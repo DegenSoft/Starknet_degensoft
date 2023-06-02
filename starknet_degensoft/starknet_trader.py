@@ -102,7 +102,7 @@ class StarknetTrader(BaseTrader):
             if project['cls'] == MyswapSwap and not self.testnet:
                 token_name = 'DAI'  # only DAI for myswap.xyz for now
                 token_address = self.starknet_contracts[token_name]
-            self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount} ETH -> {token_name}')
+            self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount:.4f} ETH -> {token_name}')
             self.swap(swap_cls=project['cls'], account=account.starknet_account,
                       amount=random_amount, token_address=token_address,
                       wait_for_tx=True if not is_last_project else False)
@@ -133,7 +133,7 @@ class StarknetTrader(BaseTrader):
                 break
             balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
             starknet_address = hex(account.starknet_account.address)
-            self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} ({balance} ETH)')
+            self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} ({balance:.4f} ETH)')
             # self.logger.info(self.get_address_url(starknet_address))
             is_account_deployed = True if account.starknet_account.get_nonce_sync() else False
             for j, project in enumerate(projects, 1):
@@ -156,6 +156,8 @@ class StarknetTrader(BaseTrader):
                         if resp['success']:
                             if resp['is_whitelisted']:
                                 self.logger.info('Wallet is in the WL')
+                            else:
+                                self.logger.info('Wallet is NOT in the WL')
                             try:
                                 is_last_project = True if j == len(projects) else False
                                 self._run_project(project, account, is_last_project=is_last_project)
