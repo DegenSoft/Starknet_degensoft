@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import re
 import sys
 import logging
 import random
@@ -13,7 +14,7 @@ def load_lines(filename):
         return [row.strip() for row in f if row and not row.startswith('#')]
 
 
-log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')  # log message formatting
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s', '%Y-%m-%d %H:%M:%S')
 
 color_formatter = colorlog.ColoredFormatter(
     '%(log_color)s%(asctime)s - %(levelname)s - %(message)s',
@@ -93,3 +94,16 @@ def uniswap_v2_calculate_tokens_and_price(x, y, amount_x, fee=0.003):
     delta_y = y - y_prime
 
     return int(delta_y)
+
+
+def convert_urls_to_links(text):
+    # Regular expression pattern to match URLs
+    url_pattern = re.compile(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+')
+
+    def replace_url(match):
+        url = match.group(0)
+        return '<a href="{0}">{0}</a>'.format(url)
+
+    # Replace URLs with clickable links
+    result = re.sub(url_pattern, replace_url, text)
+    return result

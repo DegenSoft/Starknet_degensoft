@@ -5,11 +5,12 @@ import time
 import logging
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QStyleFactory, QLabel, QLineEdit, QMenuBar, QMenu, QAction, QWidget, QDesktopWidget, QFileDialog, \
-    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox
+    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser
 from PyQt5.QtCore import QTranslator, QLocale, QThread, pyqtSignal
+from PyQt5.Qt import QDesktopServices, QUrl, Qt
 from starknet_degensoft.starknet_trader import StarknetTrader
 from starknet_degensoft.config import Config
-from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path
+from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path, convert_urls_to_links
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.layerswap import LayerswapBridge
@@ -103,6 +104,20 @@ class TraderThread(QThread):
     def resume(self):
         self.trader.resume()
         self.paused = False
+
+
+class MyQTextEdit(QTextEdit):
+
+    def mousePressEvent(self, e):
+        self.anchor = self.anchorAt(e.pos())
+        if self.anchor:
+            QApplication.setOverrideCursor(Qt.PointingHandCursor)
+
+    def mouseReleaseEvent(self, e):
+        if self.anchor:
+            QDesktopServices.openUrl(QUrl(self.anchor))
+            QApplication.setOverrideCursor(Qt.ArrowCursor)
+            self.anchor = None
 
 
 class MainWindow(QMainWindow):
@@ -401,7 +416,13 @@ class MainWindow(QMainWindow):
         layout.addLayout(button_layout)
 
         # Add a big text field for logs
-        self.log_text_edit = QTextEdit()
+        # self.log_text_edit = QTextEdit()
+        self.log_text_edit = QTextBrowser()
+        self.log_text_edit.setOpenLinks(False)
+        self.log_text_edit.anchorClicked.connect(self.handle_links)
+
+        # self.log_text_edit = MyQTextEdit()
+        # self.log_text_edit.setTextInteractionFlags(QTextEdit.__flags__.Q)
         self.log_text_edit.setReadOnly(True)
         layout.addWidget(self.log_text_edit)
 
@@ -438,6 +459,7 @@ class MainWindow(QMainWindow):
 
     def _log(self, message):
         self.log_line += 1
+        message = convert_urls_to_links(message)
         self.log_text_edit.append(f'{self.log_line}. {message}')
         self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
 
@@ -540,6 +562,9 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         self.config.gui_config = self.get_config()
         self.config.save(self.CONFIG_NAME)
+
+    def handle_links(self, url):
+        QDesktopServices.openUrl(url)
 
 
 def main():
