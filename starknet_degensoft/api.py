@@ -8,7 +8,7 @@ from web3 import Web3
 from functools import cached_property
 from datetime import timedelta, datetime
 import random
-from starknet_degensoft.utils import get_explorer_tx_url, get_explorer_address_url
+from starknet_degensoft.utils import get_explorer_tx_url, get_explorer_address_url, resource_path
 
 
 class Trader:
@@ -182,7 +182,7 @@ class Contract:
 
     def __init__(self, node: Node, name: str, address: str, abi: dict = None):
         if not abi:
-            with open(os.path.join(os.path.dirname(__file__), 'abi', f'{name}.json')) as f:
+            with open(resource_path(os.path.join('starknet_degensoft', 'abi', f'{name}.json'))) as f:
                 self.abi = json.load(f)
         else:
             self.abi = abi

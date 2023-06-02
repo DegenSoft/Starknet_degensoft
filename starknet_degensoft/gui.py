@@ -1,3 +1,4 @@
+import os
 import random
 import sys
 import time
@@ -8,7 +9,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout,
 from PyQt5.QtCore import QTranslator, QLocale, QThread, pyqtSignal
 from starknet_degensoft.starknet_trader import StarknetTrader
 from starknet_degensoft.config import Config
-from starknet_degensoft.utils import setup_file_logging, log_formatter
+from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.layerswap import LayerswapBridge
@@ -422,7 +423,7 @@ class MainWindow(QMainWindow):
     def change_language(self, index):
         languages = ["en", "ru"]
         lang = languages[index]
-        load_status = self.translator.load(f'starknet_degensoft/locale/{lang}.qm')
+        load_status = self.translator.load(resource_path(os.path.join('starknet_degensoft', 'locale', f'{lang}.qm')))
         if load_status:
             QApplication.instance().installTranslator(self.translator)
         self.retranslate_ui()
