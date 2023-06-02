@@ -77,11 +77,11 @@
     </message>
     <message>
         <source>Wallet delay</source>
-        <translation>Задержка после кошелька</translation>
+        <translation>Задержка между кошельками</translation>
     </message>
     <message>
         <source>Project delay</source>
-        <translation>Задержка после проекта</translation>
+        <translation>Задержка между проектами</translation>
     </message>
     <message>
         <source>Shuffle wallets</source>
