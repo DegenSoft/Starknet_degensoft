@@ -170,12 +170,35 @@ class UniswapForkBaseSwap(BaseSwap):
     _amounts_function_name = 'get_amounts_out'
 
     def swap_eth_to_token(self, amount, token_address, slippage=2.0):
-        self.check_balance(amount)
+        return self.swap(amount=amount, token_a_address=self.eth_contract_address,
+                         token_b_address=token_address, slippage=slippage)
+        # self.check_balance(amount)
+        # deadline = self.account.client.get_block_sync(block_number='latest').timestamp + 60 * 60  # 60 minutes
+        # path = [int(self.eth_contract_address, base=16), int(token_address, base=16)]
+        # res = self.contract.functions[self._amounts_function_name].call_sync(amountIn=amount, path=path)
+        # amount_out_min = int(res.amounts[1] * (1 - slippage / 100.0))
+        # approve_prepared_tx = self.get_prepared_approve_tx(amount=amount, token_address=self.eth_contract_address)
+        # swap_prepared_tx = self.contract.functions[self._swap_function_name].prepare(
+        #     amountIn=amount,
+        #     amountOutMin=amount_out_min,
+        #     path=path,
+        #     to=self.account.address,
+        #     deadline=deadline
+        # )
+        # calls = [approve_prepared_tx, swap_prepared_tx]
+        # invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
+        # return self.account.client.send_transaction_sync(invoke)
+
+    def swap(self, amount, token_a_address, token_b_address, slippage=2.0):
         deadline = self.account.client.get_block_sync(block_number='latest').timestamp + 60 * 60  # 60 minutes
-        path = [int(self.eth_contract_address, base=16), int(token_address, base=16)]
+        token = StarknetToken(token_address=token_a_address, account=self.account)
+        token_balance = token.balance()
+        if token_balance < amount:
+            raise ValueError('no such balance for swap')
+        path = [int(token_a_address, base=16), int(token_b_address, base=16)]
         res = self.contract.functions[self._amounts_function_name].call_sync(amountIn=amount, path=path)
         amount_out_min = int(res.amounts[1] * (1 - slippage / 100.0))
-        approve_prepared_tx = self.get_prepared_approve_tx(amount=amount, token_address=self.eth_contract_address)
+        approve_prepared_tx = token.prepare_approve_tx(amount=amount, trade_address=self._contract_address)
         swap_prepared_tx = self.contract.functions[self._swap_function_name].prepare(
             amountIn=amount,
             amountOutMin=amount_out_min,
@@ -183,9 +206,13 @@ class UniswapForkBaseSwap(BaseSwap):
             to=self.account.address,
             deadline=deadline
         )
-        invoke = self.account.sign_invoke_transaction_sync(calls=[approve_prepared_tx, swap_prepared_tx],
-                                                           auto_estimate=True)
+        calls = [approve_prepared_tx, swap_prepared_tx]
+        invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
         return self.account.client.send_transaction_sync(invoke)
+
+    def swap_token_to_eth(self, amount, token_address, slippage=2.0):
+        return self.swap(amount=amount, token_a_address=token_address,
+                         token_b_address=self.eth_contract_address, slippage=slippage)
 
 
 class JediSwap(UniswapForkBaseSwap):
