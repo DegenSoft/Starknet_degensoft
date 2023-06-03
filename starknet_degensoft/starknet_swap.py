@@ -1,8 +1,44 @@
 # -*- coding: utf-8 -*-
+from functools import cached_property
 from starknet_py.net.account.account import Account as StarknetAccount
 from starknet_py.contract import Contract
 from starknet_degensoft.utils import uniswap_v2_calculate_tokens_and_price
+from starknet_py.proxy.contract_abi_resolver import ProxyResolutionError
 from web3 import Web3
+
+
+class StarknetToken:
+    def __init__(self, token_address, account):
+        try:
+            self.contract = Contract.from_address_sync(address=token_address, provider=account, proxy_config=True)
+        except ProxyResolutionError:
+            self.contract = Contract.from_address_sync(address=token_address, provider=account, proxy_config=False)
+
+    def prepare_approve_tx(self, amount, trade_address):
+        return self.contract.functions['approve'].prepare(spender=int(trade_address, base=16), amount=amount)
+
+    @property
+    def address(self):
+        return self.contract.address
+
+    @cached_property
+    def symbol(self):
+        int_repr = self.contract.functions['symbol'].call_sync()[0]
+        return bytes.fromhex(hex(int_repr).replace('0x', '')).decode('utf8')
+
+    @cached_property
+    def decimals(self):
+        return self.contract.functions['decimals'].call_sync()[0]
+
+    def to_native(self, amount):
+        return int(amount * 10 ** self.decimals)
+
+    def from_native(self, native_amount):
+        return native_amount / 10 ** self.decimals
+
+    def balance(self):
+        return self.contract.functions['balanceOf'].call_sync(self.contract.account.address)[0]
+
 
 
 class BaseSwap:
@@ -60,6 +96,41 @@ class MyswapSwap(BaseSwap):
                 # '0x03fe2b97c1fd336e750087d68b9b867997fd64a2661ff3ca5a7c771641e8e7ac': None,  # wbtc not a valid pool
             }
 
+    def swap(self, amount, token_a_address, token_b_address, slippage=2.0):
+        if token_a_address in self._token_pool_mapping:
+            pool_id = self._token_pool_mapping[token_a_address]
+        elif token_b_address in self._token_pool_mapping:
+            pool_id = self._token_pool_mapping[token_b_address]
+        else:
+            raise ValueError(f'no such token for myswap')
+        token = StarknetToken(token_address=token_a_address, account=self.account)
+        token_balance = token.balance()
+        if token_balance < amount:
+            raise ValueError('no such balance for swap')
+        pool_data = self.contract.functions['get_pool'].call_sync(pool_id=pool_id, block_number='pending')
+        if pool_data.pool['token_a_address'] == token.address:
+            token_a_reserves = pool_data.pool['token_a_reserves']
+            token_b_reserves = pool_data.pool['token_b_reserves']
+        else:
+            token_a_reserves = pool_data.pool['token_b_reserves']
+            token_b_reserves = pool_data.pool['token_a_reserves']
+        amount_to = uniswap_v2_calculate_tokens_and_price(
+            x=token_a_reserves,
+            y=token_b_reserves,
+            amount_x=amount,
+            fee=pool_data.pool['fee_percentage'] / 1000 / 100)
+        amount_to_min = int(amount_to * (1 - slippage / 100.0))
+        approve_prepared_tx = token.prepare_approve_tx(amount=amount, trade_address=self._contract_address)
+        swap_prepared_tx = self.contract.functions['swap'].prepare(
+            pool_id=pool_id,
+            token_from_addr=token.address,
+            amount_from=amount,
+            amount_to_min=amount_to_min
+        )
+        calls = [approve_prepared_tx, swap_prepared_tx]
+        invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
+        return self.account.client.send_transaction_sync(invoke)
+
     def swap_eth_to_token(self, amount, token_address='0x0', slippage=2.0):
         try:
             pool_id = self._token_pool_mapping[token_address]
@@ -83,9 +154,14 @@ class MyswapSwap(BaseSwap):
             amount_to_min=amount_to_min
         )
         calls = [approve_prepared_tx, swap_prepared_tx]
-        invoke = self.account.sign_invoke_transaction_sync(calls=calls,
-                                                           auto_estimate=True)
+        invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
         return self.account.client.send_transaction_sync(invoke)
+
+    def swap_token_to_eth(self, amount, token_address, slippage=2.0):
+        return self.swap(amount=amount,
+                         token_a_address=token_address,
+                         token_b_address=self.eth_contract_address,
+                         slippage=slippage)
 
 
 class UniswapForkBaseSwap(BaseSwap):
