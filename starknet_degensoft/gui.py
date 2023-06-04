@@ -1,33 +1,35 @@
+import logging
 import os
 import random
 import sys
-import time
-import logging
+
+from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
+from PyQt5.QtCore import QTranslator, QThread, pyqtSignal
+from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
-    QTextEdit, QStyleFactory, QLabel, QLineEdit, QMenuBar, QMenu, QAction, QWidget, QDesktopWidget, QFileDialog, \
+    QTextEdit, QStyleFactory, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
     QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser
-from PyQt5.QtCore import QTranslator, QLocale, QThread, pyqtSignal
-from PyQt5.Qt import QDesktopServices, QUrl, Qt
-from starknet_degensoft.starknet_trader import StarknetTrader
+
+from starknet_degensoft.api_client2 import DegenSoftApiClient
 from starknet_degensoft.config import Config
-from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path, convert_urls_to_links
-from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
-from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.layerswap import LayerswapBridge
-from starknet_degensoft.api_client2 import DegenSoftApiClient, DegenSoftApiError
+from starknet_degensoft.starkgate import StarkgateBridge
+from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
+from starknet_degensoft.starknet_trader import StarknetTrader
+from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path, convert_urls_to_links
 
 
-class QtSignalLogHandler(logging.Handler):
-    def __init__(self, signal):
-        super().__init__()
-        self.signal = signal
-
-    def emit(self, record):
-        message = self.format(record)
-        self.signal.emit(message)
-
-    def flush(self):
-        pass
+# class QtSignalLogHandler(logging.Handler):
+#     def __init__(self, signal):
+#         super().__init__()
+#         self.signal = signal
+#
+#     def emit(self, record):
+#         message = self.format(record)
+#         self.signal.emit(message)
+#
+#     def flush(self):
+#         pass
 
 
 class GuiLogHandler(logging.Handler):
@@ -64,10 +66,9 @@ class TraderThread(QThread):
         self.bridges = bridges
         self.paused = False
         self.logger = logging.getLogger('starknet')
-        self.handler = QtSignalLogHandler(signal=self.logger_signal)
-        # self.handler.setLevel(logging.DEBUG)
-        self.handler.setFormatter(log_formatter)
-        self.logger.addHandler(self.handler)
+        # self.handler = QtSignalLogHandler(signal=self.logger_signal)
+        # self.handler.setFormatter(log_formatter)
+        # self.logger.addHandler(self.handler)
 
     def run(self):
         wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
@@ -87,11 +88,15 @@ class TraderThread(QThread):
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
                 bridge_amount = (self.config[f'min_eth_{key}_selector'], self.config[f'max_eth_{key}_selector'])
                 projects.append(dict(cls=self.bridges[key]['cls'], network=bridge_network_name, amount=bridge_amount))
+        if self.config['backswaps_checkbox']:
+            projects.append(dict(cls=None,
+                                 count=self.config['backswaps_count_spinbox'],
+                                 amount_usd=self.config['backswaps_usd_spinbox']))
         self.trader.run(projects=projects, wallet_delay=wallet_delay,
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
                         api=self.api)
         self.task_completed.emit()
-        self.logger.removeHandler(self.handler)
+        # self.logger.removeHandler(self.handler)
 
     def pause(self):
         self.trader.pause()
@@ -157,6 +162,10 @@ class MainWindow(QMainWindow):
         'private_keys_label': "Private keys file",
         'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
         'quests_label': "Select quests",
+        'backswaps_label': "Back swap tokens to ETH",
+        'backswaps_checkbox': "Make swap tokens to ETH",
+        'backswaps_usd_label': "Minimum token USD price:",
+        'backswaps_count_label': "Amount of swaps (random tokens):",
         'options_label': "Options",
         'wallet_delay_label': "Wallet delay",
         'project_delay_label': "Project delay",
@@ -170,7 +179,8 @@ class MainWindow(QMainWindow):
         'min_price_label': "min $:",
         'max_price_label': "max $:",
         'shuffle_checkbox': "Shuffle wallets",
-        'select_file_button': "Select File",
+        # 'select_file_button': "Select File",
+        'select_file_button': "Import wallets",
         'start_button': "Start",
         'stop_button': "Stop",
         'pause_button': "Pause/Continue"
@@ -185,8 +195,14 @@ class MainWindow(QMainWindow):
         setup_gui_loging(logger=self.logger, callback=self._log)
         startnet_logger = logging.getLogger('starknet')
         startnet_logger.setLevel(level=logging.DEBUG)
+        setup_gui_loging(startnet_logger, callback=self._log)
         for logger in (self.logger, startnet_logger):
             setup_file_logging(logger=logger, log_file='default.log')
+
+        # handler = QtSignalLogHandler(signal=self.logger_signal)
+        # handler.setFormatter(log_formatter)
+        # startnet_logger.addHandler(handler)
+
         for bridge_name in self.bridges:
             self.messages[f'min_eth_{bridge_name}_label'] = self.messages['min_eth_label']
             self.messages[f'max_eth_{bridge_name}_label'] = self.messages['max_eth_label']
@@ -241,6 +257,8 @@ class MainWindow(QMainWindow):
 
     def init_ui(self):
         layout = QVBoxLayout()
+        bold_font = QFont()
+        bold_font.setBold(True)
 
         language_layout = QHBoxLayout()
         language_label = QLabel()
@@ -258,7 +276,8 @@ class MainWindow(QMainWindow):
         api_key_layout = QHBoxLayout()
         api_key_label = QLabel()
         api_key_label.setOpenExternalLinks(True)
-        api_key_layout.addWidget(api_key_label)
+        # api_key_layout.addWidget(api_key_label)
+        layout.addWidget(api_key_label)
         api_key_field = QLineEdit()
         # api_key_field.setText()
         api_key_field.setEchoMode(QLineEdit.Password)
@@ -274,13 +293,13 @@ class MainWindow(QMainWindow):
         self.widgets_config['api_key_checkbox'] = api_key_checkbox
 
         private_keys_layout = QHBoxLayout()
-        private_keys_label = QLabel(self.tr("Ethereum private keys file:"))
-        private_keys_layout.addWidget(private_keys_label)
-        select_file_button = QPushButton(self.tr("Select File"))
+        # private_keys_label = QLabel(self.tr("Ethereum private keys file:"))
+        # private_keys_layout.addWidget(private_keys_label)
+        select_file_button = QPushButton()
         select_file_button.clicked.connect(self.on_open_file_clicked)
         private_keys_layout.addWidget(select_file_button)
         layout.addLayout(private_keys_layout)
-        self.widgets_tr['private_keys_label'] = private_keys_label
+        # self.widgets_tr['private_keys_label'] = private_keys_label
         self.widgets_tr['select_file_button'] = select_file_button
 
         # starknet_seed_layout = QHBoxLayout()
@@ -294,6 +313,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(QSplitter())
 
         bridges_label = QLabel()
+        bridges_label.setFont(bold_font)
         layout.addWidget(bridges_label)
         self.widgets_tr['bridges_label'] = bridges_label
 
@@ -329,8 +349,10 @@ class MainWindow(QMainWindow):
             layout.addLayout(bridge_layout)
 
         layout.addWidget(QSplitter())
-        self.widgets_tr['quests_label'] = QLabel()
-        layout.addWidget(self.widgets_tr['quests_label'])
+        quests_label = QLabel()
+        quests_label.setFont(bold_font)
+        self.widgets_tr['quests_label'] = quests_label
+        layout.addWidget(quests_label)
 
         for key in self.swaps:
             quest_layout = QHBoxLayout()
@@ -339,12 +361,12 @@ class MainWindow(QMainWindow):
             quest_layout.addWidget(swap_checkbox)
             min_price_label = QLabel(self.tr('min $:'))
             quest_layout.addWidget(min_price_label)
-            min_eth_selector = QDoubleSpinBox()
+            min_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
             min_eth_selector.setRange(0, 10000)
             quest_layout.addWidget(min_eth_selector)
             max_price_label = QLabel(self.tr('max $:'))
             quest_layout.addWidget(max_price_label)
-            max_eth_selector = QDoubleSpinBox()
+            max_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
             max_eth_selector.setRange(0, 10000)
             quest_layout.addWidget(max_eth_selector)
             quest_layout.setStretch(0, 1)
@@ -366,8 +388,35 @@ class MainWindow(QMainWindow):
         layout.addWidget(random_swap_checkbox)
 
         layout.addWidget(QSplitter())
-        self.widgets_tr['options_label'] = QLabel()
-        layout.addWidget(self.widgets_tr['options_label'])
+        backswaps_label = QLabel()
+        backswaps_label.setFont(bold_font)
+        self.widgets_tr['backswaps_label'] = backswaps_label
+        layout.addWidget(backswaps_label)
+
+        backswaps_checkbox = QCheckBox()
+        layout.addWidget(backswaps_checkbox)
+        self.widgets_tr['backswaps_checkbox'] = backswaps_checkbox
+        self.widgets_config['backswaps_checkbox'] = backswaps_checkbox
+        backswaps_layout = QHBoxLayout()
+        self.widgets_tr['backswaps_count_label'] = QLabel()
+        self.widgets_tr['backswaps_usd_label'] = QLabel()
+        backswaps_count_spinbox = QSpinBox()
+        backswaps_count_spinbox.setRange(0, 1000)
+        self.widgets_config['backswaps_count_spinbox'] = backswaps_count_spinbox
+        backswaps_usd_spinbox = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        backswaps_usd_spinbox.setRange(0, 10000)
+        self.widgets_config['backswaps_usd_spinbox'] = backswaps_usd_spinbox
+        backswaps_layout.addWidget(self.widgets_tr['backswaps_count_label'])
+        backswaps_layout.addWidget(backswaps_count_spinbox)
+        backswaps_layout.addWidget(self.widgets_tr['backswaps_usd_label'])
+        backswaps_layout.addWidget(backswaps_usd_spinbox)
+        layout.addLayout(backswaps_layout)
+
+        layout.addWidget(QSplitter())
+        options_label = QLabel()
+        options_label.setFont(bold_font)
+        self.widgets_tr['options_label'] = options_label
+        layout.addWidget(options_label)
 
         for option_name in ('wallet_delay', 'project_delay'):
             options_layout = QHBoxLayout()
@@ -375,11 +424,11 @@ class MainWindow(QMainWindow):
             min_option_1_label = QLabel()
             min_option_1_selector = QSpinBox()
             min_option_1_selector.setRange(0, 10000)
-            min_option_1_selector.setValue(60)
+            # min_option_1_selector.setValue(60)
             max_option_1_label = QLabel()
             max_option_1_selector = QSpinBox()
             max_option_1_selector.setRange(0, 10000)
-            max_option_1_selector.setValue(120)
+            # max_option_1_selector.setValue(120)
             options_layout.addWidget(options_1_label)
             options_layout.addWidget(min_option_1_label)
             options_layout.addWidget(min_option_1_selector)
@@ -400,7 +449,6 @@ class MainWindow(QMainWindow):
         self.widgets_tr['shuffle_checkbox'] = shuffle_checkbox
         layout.addWidget(shuffle_checkbox)
 
-
         layout.addWidget(QSplitter())
 
         button_layout = QHBoxLayout()
@@ -418,11 +466,11 @@ class MainWindow(QMainWindow):
         layout.addLayout(button_layout)
 
         # Add a big text field for logs
-        self.log_text_edit = MyQTextEdit()
+        # self.log_text_edit = MyQTextEdit()
         # self.log_text_edit = QTextEdit()
-        # self.log_text_edit = QTextBrowser()
-        # self.log_text_edit.setOpenLinks(False)
-        # self.log_text_edit.anchorClicked.connect(self.handle_links)
+        self.log_text_edit = QTextBrowser()
+        self.log_text_edit.setOpenLinks(False)
+        self.log_text_edit.anchorClicked.connect(self.handle_links)
 
         self.log_text_edit.setReadOnly(True)
         layout.addWidget(self.log_text_edit)
@@ -459,10 +507,16 @@ class MainWindow(QMainWindow):
             self.widgets_tr[widget_name].setText(self.tr(self.messages[widget_name]))
 
     def _log(self, message):
+        # todo: fix bug with links
         self.log_line += 1
         message = convert_urls_to_links(message)
-        self.log_text_edit.append(f'{self.log_line}. {message}')
-        self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
+        # self.log_text_edit.append(f'{self.log_line}. {message}')
+        # self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
+        self.log_text_edit.moveCursor(QTextCursor.End)
+        self.log_text_edit.insertHtml(f'{self.log_line}. {message}<br>')
+        scroll = self.log_text_edit.verticalScrollBar()
+        scroll.setValue(scroll.maximum())
+        # time.sleep(0.01)
 
     def show_error_message(self, message):
         alert = QMessageBox()
@@ -572,7 +626,7 @@ def main():
     app = QApplication(sys.argv)
     app.setStyle(QStyleFactory.create('Windows'))
     main_window = MainWindow()
-    main_window.setMinimumSize(480, 320)
+    main_window.setMinimumSize(600, 700)
     frame_geometry = main_window.frameGeometry()
     center_point = QDesktopWidget().availableGeometry().center()
     frame_geometry.moveCenter(center_point)

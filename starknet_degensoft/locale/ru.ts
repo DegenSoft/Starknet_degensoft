@@ -43,6 +43,10 @@
         <translation>Выберете файл</translation>
     </message>
     <message>
+        <source>Import wallets</source>
+        <translation>Импорт кошельков</translation>
+    </message>
+    <message>
         <location filename="gui.py" line="70"/>
         <source>Select bridge and source network to transfer ETH to Starknet</source>
         <translation>Выберете мост и сеть в которой у вас есть ETH для перевода в Starknet</translation>
@@ -69,6 +73,22 @@
         <location filename="gui.py" line="114"/>
         <source>max $:</source>
         <translation>макс $:</translation>
+    </message>
+    <message>
+        <source>Back swap tokens to ETH</source>
+        <translation>Обмен токенов обратно в ETH</translation>
+    </message>
+    <message>
+        <source>Make swap tokens to ETH</source>
+        <translation>Сделать свап токенов в ETH</translation>
+    </message>
+    <message>
+        <source>Minimum token USD price:</source>
+        <translation>Минимальная цена токена в USD:</translation>
+    </message>
+    <message>
+        <source>Amount of swaps (random tokens):</source>
+        <translation>Количество свапов в ETH (рандомный выбор токенов):</translation>
     </message>
     <message>
         <location filename="gui.py" line="126"/>

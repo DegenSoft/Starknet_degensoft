@@ -27,14 +27,16 @@ class DegenSoftApiClient:
 
     @staticmethod
     def create_address_hashes(address):
-        no_checksum = address.lower()
-        try:
+        if type(address) == str:
+            no_checksum = address.lower()
             checksum = Web3.to_checksum_address(no_checksum)
             checksum = hashlib.sha256(checksum.encode('utf-8')).hexdigest()
-        except ValueError:
-            checksum = ""
-        no_checksum = hashlib.sha256(no_checksum.encode("utf-8")).hexdigest()
-        return [checksum, no_checksum]
+            no_checksum = hashlib.sha256(no_checksum.encode("utf-8")).hexdigest()
+            return [checksum, no_checksum]
+        elif type(address) == list:
+            return [hashlib.sha256(s.lower().encode('utf-8')).hexdigest() for s in address]
+        else:
+            raise ValueError('bad address in create_address_hashes()')
 
     def make_client_hash(self, method, api_salt):
         return self.make_hash(self.api_key, method, api_salt, self.client_secret)

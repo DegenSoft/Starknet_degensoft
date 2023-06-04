@@ -1,18 +1,53 @@
 # -*- coding: utf-8 -*-
 from functools import cached_property
-from starknet_py.net.account.account import Account as StarknetAccount
+
 from starknet_py.contract import Contract
+from starknet_py.net.account.account import Account as StarknetAccount
+
 from starknet_degensoft.utils import uniswap_v2_calculate_tokens_and_price
-from starknet_py.proxy.contract_abi_resolver import ProxyResolutionError
-from web3 import Web3
+
+ERC20_ABI = [{'members': [{'name': 'low', 'offset': 0, 'type': 'felt'}, {'name': 'high', 'offset': 1, 'type': 'felt'}],
+              'name': 'Uint256', 'size': 2, 'type': 'struct'},
+             {'inputs': [], 'name': 'name', 'outputs': [{'name': 'name', 'type': 'felt'}], 'stateMutability': 'view',
+              'type': 'function'}, {'inputs': [], 'name': 'symbol', 'outputs': [{'name': 'symbol', 'type': 'felt'}],
+                                    'stateMutability': 'view', 'type': 'function'},
+             {'inputs': [], 'name': 'totalSupply', 'outputs': [{'name': 'totalSupply', 'type': 'Uint256'}],
+              'stateMutability': 'view', 'type': 'function'},
+             {'inputs': [], 'name': 'decimals', 'outputs': [{'name': 'decimals', 'type': 'felt'}],
+              'stateMutability': 'view', 'type': 'function'},
+             {'inputs': [{'name': 'account', 'type': 'felt'}], 'name': 'balanceOf',
+              'outputs': [{'name': 'balance', 'type': 'Uint256'}], 'stateMutability': 'view', 'type': 'function'},
+             {'inputs': [{'name': 'owner', 'type': 'felt'}, {'name': 'spender', 'type': 'felt'}], 'name': 'allowance',
+              'outputs': [{'name': 'remaining', 'type': 'Uint256'}], 'stateMutability': 'view', 'type': 'function'},
+             {'inputs': [], 'name': 'permittedMinter', 'outputs': [{'name': 'minter', 'type': 'felt'}],
+              'stateMutability': 'view', 'type': 'function'}, {
+                 'inputs': [{'name': 'name', 'type': 'felt'}, {'name': 'symbol', 'type': 'felt'},
+                            {'name': 'decimals', 'type': 'felt'}, {'name': 'minter_address', 'type': 'felt'}],
+                 'name': 'constructor', 'outputs': [], 'type': 'constructor'},
+             {'inputs': [{'name': 'recipient', 'type': 'felt'}, {'name': 'amount', 'type': 'Uint256'}],
+              'name': 'transfer', 'outputs': [{'name': 'success', 'type': 'felt'}], 'type': 'function'}, {
+                 'inputs': [{'name': 'sender', 'type': 'felt'}, {'name': 'recipient', 'type': 'felt'},
+                            {'name': 'amount', 'type': 'Uint256'}], 'name': 'transferFrom',
+                 'outputs': [{'name': 'success', 'type': 'felt'}], 'type': 'function'},
+             {'inputs': [{'name': 'spender', 'type': 'felt'}, {'name': 'amount', 'type': 'Uint256'}], 'name': 'approve',
+              'outputs': [{'name': 'success', 'type': 'felt'}], 'type': 'function'},
+             {'inputs': [{'name': 'spender', 'type': 'felt'}, {'name': 'added_value', 'type': 'Uint256'}],
+              'name': 'increaseAllowance', 'outputs': [{'name': 'success', 'type': 'felt'}], 'type': 'function'},
+             {'inputs': [{'name': 'spender', 'type': 'felt'}, {'name': 'subtracted_value', 'type': 'Uint256'}],
+              'name': 'decreaseAllowance', 'outputs': [{'name': 'success', 'type': 'felt'}], 'type': 'function'},
+             {'inputs': [{'name': 'recipient', 'type': 'felt'}, {'name': 'amount', 'type': 'Uint256'}],
+              'name': 'permissionedMint', 'outputs': [], 'type': 'function'},
+             {'inputs': [{'name': 'account', 'type': 'felt'}, {'name': 'amount', 'type': 'Uint256'}],
+              'name': 'permissionedBurn', 'outputs': [], 'type': 'function'}]
 
 
 class StarknetToken:
     def __init__(self, token_address, account):
-        try:
-            self.contract = Contract.from_address_sync(address=token_address, provider=account, proxy_config=True)
-        except ProxyResolutionError:
-            self.contract = Contract.from_address_sync(address=token_address, provider=account, proxy_config=False)
+        # try:
+        #     self.contract = Contract.from_address_sync(address=token_address, provider=account, proxy_config=True)
+        # except ProxyResolutionError:
+        #     self.contract = Contract.from_address_sync(address=token_address, provider=account, proxy_config=False)
+        self.contract = Contract(address=token_address, abi=ERC20_ABI, provider=account)
 
     def prepare_approve_tx(self, amount, trade_address):
         return self.contract.functions['approve'].prepare(spender=int(trade_address, base=16), amount=amount)
@@ -38,7 +73,6 @@ class StarknetToken:
 
     def balance(self):
         return self.contract.functions['balanceOf'].call_sync(self.contract.account.address)[0]
-
 
 
 class BaseSwap:
@@ -131,31 +165,37 @@ class MyswapSwap(BaseSwap):
         invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
         return self.account.client.send_transaction_sync(invoke)
 
+    # def swap_eth_to_token(self, amount, token_address='0x0', slippage=2.0):
+    #     try:
+    #         pool_id = self._token_pool_mapping[token_address]
+    #     except KeyError:
+    #         raise ValueError(f'no such token for myswap: {token_address}')
+    #     self.check_balance(amount)
+    #     pool_data = self.contract.functions['get_pool'].call_sync(pool_id=pool_id, block_number='pending')
+    #     # print(pool_data)
+    #     amount_to = uniswap_v2_calculate_tokens_and_price(
+    #         x=pool_data.pool['token_b_reserves'],
+    #         y=pool_data.pool['token_a_reserves'],
+    #         amount_x=amount,
+    #         fee=pool_data.pool['fee_percentage'] / 1000 / 100)
+    #     amount_to_min = int(amount_to * (1 - slippage / 100.0))
+    #     # print(amount_to, amount_to_min)
+    #     approve_prepared_tx = self.get_prepared_approve_tx(amount=amount, token_address=self.eth_contract_address)
+    #     swap_prepared_tx = self.contract.functions['swap'].prepare(
+    #         pool_id=pool_id,
+    #         token_from_addr=int(self.eth_contract_address, base=16),
+    #         amount_from=amount,
+    #         amount_to_min=amount_to_min
+    #     )
+    #     calls = [approve_prepared_tx, swap_prepared_tx]
+    #     invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
+    #     return self.account.client.send_transaction_sync(invoke)
+
     def swap_eth_to_token(self, amount, token_address='0x0', slippage=2.0):
-        try:
-            pool_id = self._token_pool_mapping[token_address]
-        except KeyError:
-            raise ValueError(f'no such token for myswap: {token_address}')
-        self.check_balance(amount)
-        pool_data = self.contract.functions['get_pool'].call_sync(pool_id=pool_id, block_number='pending')
-        # print(pool_data)
-        amount_to = uniswap_v2_calculate_tokens_and_price(
-            x=pool_data.pool['token_b_reserves'],
-            y=pool_data.pool['token_a_reserves'],
-            amount_x=amount,
-            fee=pool_data.pool['fee_percentage'] / 1000 / 100)
-        amount_to_min = int(amount_to * (1 - slippage / 100.0))
-        # print(amount_to, amount_to_min)
-        approve_prepared_tx = self.get_prepared_approve_tx(amount=amount, token_address=self.eth_contract_address)
-        swap_prepared_tx = self.contract.functions['swap'].prepare(
-            pool_id=pool_id,
-            token_from_addr=int(self.eth_contract_address, base=16),
-            amount_from=amount,
-            amount_to_min=amount_to_min
-        )
-        calls = [approve_prepared_tx, swap_prepared_tx]
-        invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
-        return self.account.client.send_transaction_sync(invoke)
+        return self.swap(amount=amount,
+                         token_a_address=self.eth_contract_address,
+                         token_b_address=token_address,
+                         slippage=slippage)
 
     def swap_token_to_eth(self, amount, token_address, slippage=2.0):
         return self.swap(amount=amount,
