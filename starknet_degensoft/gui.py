@@ -19,17 +19,17 @@ from starknet_degensoft.starknet_trader import StarknetTrader
 from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path, convert_urls_to_links
 
 
-# class QtSignalLogHandler(logging.Handler):
-#     def __init__(self, signal):
-#         super().__init__()
-#         self.signal = signal
-#
-#     def emit(self, record):
-#         message = self.format(record)
-#         self.signal.emit(message)
-#
-#     def flush(self):
-#         pass
+class QtSignalLogHandler(logging.Handler):
+    def __init__(self, signal):
+        super().__init__()
+        self.signal = signal
+
+    def emit(self, record):
+        message = self.format(record)
+        self.signal.emit(message)
+
+    def flush(self):
+        pass
 
 
 class GuiLogHandler(logging.Handler):
@@ -55,7 +55,7 @@ def setup_gui_loging(logger, callback, formatter=log_formatter):
 
 class TraderThread(QThread):
     task_completed = pyqtSignal()
-    logger_signal = pyqtSignal(str)
+    # logger_signal = pyqtSignal(str)
 
     def __init__(self, api, trader, config, swaps, bridges):
         super().__init__()
@@ -134,6 +134,7 @@ class MainWindow(QMainWindow):
     file_name = None
     log_line = 0
     worker_thread = None
+    logger_signal = pyqtSignal(str)
 
     bridges = {
         'starkgate': {
@@ -195,13 +196,13 @@ class MainWindow(QMainWindow):
         setup_gui_loging(logger=self.logger, callback=self._log)
         startnet_logger = logging.getLogger('starknet')
         startnet_logger.setLevel(level=logging.DEBUG)
-        setup_gui_loging(startnet_logger, callback=self._log)
+        # setup_gui_loging(startnet_logger, callback=self._log)
         for logger in (self.logger, startnet_logger):
             setup_file_logging(logger=logger, log_file='default.log')
-
-        # handler = QtSignalLogHandler(signal=self.logger_signal)
-        # handler.setFormatter(log_formatter)
-        # startnet_logger.addHandler(handler)
+        handler = QtSignalLogHandler(signal=self.logger_signal)
+        handler.setFormatter(log_formatter)
+        startnet_logger.addHandler(handler)
+        self.logger_signal.connect(self._log)
 
         for bridge_name in self.bridges:
             self.messages[f'min_eth_{bridge_name}_label'] = self.messages['min_eth_label']
@@ -566,7 +567,7 @@ class MainWindow(QMainWindow):
         self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api, config=conf,
                                           swaps=self.swaps, bridges=self.bridges)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
-        self.worker_thread.logger_signal.connect(self._log)
+        # self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
 
     def on_thread_task_completed(self):

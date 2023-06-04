@@ -91,15 +91,14 @@ class StarknetTrader(BaseTrader):
                 ethereum_private_key = row['ethereum_private_key'] if row['ethereum_private_key'] else None
                 if ethereum_private_key:
                     eth_account = Web3().eth.account.from_key(ethereum_private_key)  # checking ethereum private key
-                    self.logger.debug(f'Loaded account: {eth_account.address}')
+                    # self.logger.debug(f'Loaded account: {eth_account.address}')
                 try:
                     starknet_address = row['starknet_address']
                     starknet_account = self.get_account(starknet_address, row['starknet_private_key'])
                     # starknet_balance = Web3.from_wei(starknet_account.get_balance_sync(), 'ether')
                 except ValueError:
                     raise ValueError('bad Starknet address or private key')
-                # self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)} -> {starknet_balance} ETH')
-                self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)}')
+                # self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)}')
                 accounts.append(TraderAccount(private_key=ethereum_private_key, starknet_address=starknet_address,
                                               starknet_account=starknet_account))
         self.accounts = accounts
@@ -328,10 +327,11 @@ class StarknetTrader(BaseTrader):
                 self.process_pause()
             if self.stopped:
                 break
-            wait_for_tx = False if i == len(token_to_swap) else True
+            wait_for_tx = False if i == len(tokens_to_swap) else True
             balance_from_native = token_to_swap["token"].from_native(token_to_swap["balance"])
             self.logger.info(f'Swap {token_to_swap["cls"].swap_name}: {balance_from_native:.4f} '
                              f'{token_to_swap["symbol"]} ({token_to_swap["balance_usd"]:.4f} USD) -> ETH')
+            # self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
             self.swap(swap_cls=token_to_swap["cls"],
                       account=starknet_account,
                       amount=token_to_swap["balance"],
