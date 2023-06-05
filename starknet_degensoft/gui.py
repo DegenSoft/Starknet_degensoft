@@ -16,7 +16,8 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
 from starknet_degensoft.starknet_trader import StarknetTrader
-from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path, convert_urls_to_links
+from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path, convert_urls_to_links,\
+    mask_hex_in_string
 
 
 class QtSignalLogHandler(logging.Handler):
@@ -511,6 +512,8 @@ class MainWindow(QMainWindow):
         # todo: fix bug with links
         self.log_line += 1
         message = convert_urls_to_links(message)
+        if self.widgets_config['api_key_checkbox'].isChecked():
+            message = mask_hex_in_string(message)
         # self.log_text_edit.append(f'{self.log_line}. {message}')
         # self.log_text_edit.verticalScrollBar().setValue(self.log_text_edit.verticalScrollBar().maximum())
         self.log_text_edit.moveCursor(QTextCursor.End)

@@ -108,3 +108,19 @@ def convert_urls_to_links(text):
     # Replace URLs with clickable links
     result = re.sub(url_pattern, replace_url, text)
     return result
+
+
+def mask_hex_in_string(input_string):
+    # Разделяем входную строку на части с использованием тегов "a href"
+    pattern_link = re.compile(r'(<a href=".*?".*?>)', re.DOTALL)
+    parts = pattern_link.split(input_string)
+    pattern_hex = re.compile(r'(0x)([0-9a-fA-F]+)')
+    # Обрабатываем каждую часть
+    for i in range(len(parts)):
+        # Если часть содержит ссылку, оставляем её без изменений
+        if pattern_link.fullmatch(parts[i]):
+            continue
+        # Если нет, заменяем hex на звездочки, оставив первые и последние 4 символа
+        else:
+            parts[i] = pattern_hex.sub(lambda m: m.group(1) + m.group(2)[:4] + '*' * (len(m.group(2)) - 8) + m.group(2)[-4:], parts[i])
+    return ''.join(parts)
