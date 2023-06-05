@@ -75,7 +75,7 @@ class TraderThread(QThread):
         swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
         projects = []
         # print(self.config)
-        for key in self.swaps:
+        for key in random.sample(self.swaps.keys(), len(self.swaps)):
             if self.config[f'swap_{key}_checkbox']:
                 projects.append(dict(cls=self.swaps[key]['cls'],
                                      amount_usd=(self.config[f'min_price_{key}_selector'],
@@ -83,7 +83,7 @@ class TraderThread(QThread):
         if self.config['random_swap_checkbox']:
             random.shuffle(projects)
             projects = projects[:1]
-        for key in self.bridges:
+        for key in random.sample(self.bridges.keys(), len(self.bridges)):
             if self.config[f'bridge_{key}_checkbox']:
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
                 bridge_amount = (self.config[f'min_eth_{key}_selector'], self.config[f'max_eth_{key}_selector'])
