@@ -6,10 +6,15 @@ import time
 from collections import namedtuple
 
 import requests
-from starknet_py.net.account.account import Account as StarknetAccount
+from starknet_py.hash.selector import get_selector_from_name
+from starknet_py.net.account.account import Account as BaseStarknetAccount
+from starknet_py.net.client_errors import ClientError
+from starknet_py.net.client_models import Call
 from starknet_py.net.gateway_client import GatewayClient
+from starknet_py.net.models import parse_address
 from starknet_py.net.models.chains import StarknetChainId
 from starknet_py.net.signer.stark_curve_signer import KeyPair
+from starknet_py.utils.sync import add_sync_methods
 from web3 import Web3
 
 from starknet_degensoft.api import Account, Node
@@ -22,6 +27,24 @@ from starknet_degensoft.trader import BaseTrader
 from starknet_degensoft.utils import random_float
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
+
+
+@add_sync_methods
+class StarknetAccount(BaseStarknetAccount):
+    async def is_deployed(self):
+        try:
+            await self._client.call_contract(Call(
+                to_addr=parse_address(self.address),
+                selector=get_selector_from_name('test_call_to_something'),
+                calldata=[]
+            ))
+            return True
+        except ClientError as ex:
+            if 'StarknetErrorCode.UNINITIALIZED_CONTRACT' in ex.message:
+                return False
+            elif 'StarknetErrorCode.ENTRY_POINT_NOT_FOUND_IN_CONTRACT' in ex.message:
+                return True
+        return False
 
 
 def action_decorator(action):
@@ -189,17 +212,19 @@ class StarknetTrader(BaseTrader):
             balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
             starknet_address = hex(account.starknet_account.address)
             self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} ({balance:.4f} ETH)')
-            # self.logger.info(self.get_address_url(starknet_address))
-            is_account_deployed = True if account.starknet_account.get_nonce_sync() else False
+            # self.logger.debug(self.get_address_url(starknet_address))
+            # nonce = account.starknet_account.get_nonce_sync()
+            # self.logger.debug(f'nonce={nonce}')
+            is_deployed = account.starknet_account.is_deployed_sync()
             for j, project in enumerate(projects, 1):
                 if self.paused:
                     self.process_pause()
                 if self.stopped:
                     break
-                if (project['cls'] is None or issubclass(project['cls'], BaseSwap)) and not is_account_deployed:
-                    self.logger.error('account not deployed yet')
+                if (project['cls'] is None or issubclass(project['cls'], BaseSwap)) and not is_deployed:
+                    self.logger.error('Account not deployed yet')
                     break
-                self._api_address = [starknet_address, account.starknet_address]
+                self._api_address = [account.starknet_address, starknet_address]
 
                 if project['cls'] is None:
                     self.back_swap(starknet_account=account.starknet_account,

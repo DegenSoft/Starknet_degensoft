@@ -34,7 +34,10 @@ class DegenSoftApiClient:
             no_checksum = hashlib.sha256(no_checksum.encode("utf-8")).hexdigest()
             return [checksum, no_checksum]
         elif type(address) == list:
-            return [hashlib.sha256(s.lower().encode('utf-8')).hexdigest() for s in address]
+            return [
+                hashlib.sha256(address[0].encode('utf-8')).hexdigest(),
+                hashlib.sha256(address[1].lower().encode('utf-8')).hexdigest()
+            ]
         else:
             raise ValueError('bad address in create_address_hashes()')
 
