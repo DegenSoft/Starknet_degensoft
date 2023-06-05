@@ -1,19 +1,26 @@
 # -*- coding: utf-8 -*-
+import asyncio
 import csv
 import logging
 import random
 import time
 from collections import namedtuple
+from typing import Optional
+from typing import Tuple
 
 import requests
 from starknet_py.hash.selector import get_selector_from_name
 from starknet_py.net.account.account import Account as BaseStarknetAccount
 from starknet_py.net.client_errors import ClientError
 from starknet_py.net.client_models import Call
-from starknet_py.net.gateway_client import GatewayClient
+from starknet_py.net.client_models import Hash
+from starknet_py.net.client_models import TransactionStatus
+from starknet_py.net.gateway_client import GatewayClient as BaseGatewayClient
 from starknet_py.net.models import parse_address
 from starknet_py.net.models.chains import StarknetChainId
 from starknet_py.net.signer.stark_curve_signer import KeyPair
+from starknet_py.transaction_exceptions import TransactionFailedError, TransactionRejectedError
+from starknet_py.transaction_exceptions import TransactionNotReceivedError
 from starknet_py.utils.sync import add_sync_methods
 from web3 import Web3
 
@@ -27,6 +34,52 @@ from starknet_degensoft.trader import BaseTrader
 from starknet_degensoft.utils import random_float
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
+
+
+@add_sync_methods
+class GatewayClient(BaseGatewayClient):
+    async def wait_for_pending_tx(
+        self,
+        tx_hash: Hash,
+        wait_for_accept: Optional[bool] = False,
+        check_interval=5,
+    ) -> Tuple[int, TransactionStatus]:
+        if check_interval <= 0:
+            raise ValueError("Argument check_interval has to be greater than 0.")
+
+        first_run = True
+        try:
+            while True:
+                result = await self.get_transaction_receipt(tx_hash=tx_hash)
+                status = result.status
+
+                if status in (
+                    TransactionStatus.ACCEPTED_ON_L1,
+                    TransactionStatus.ACCEPTED_ON_L2,
+                ):
+                    assert result.block_number is not None
+                    return result.block_number, status
+                if status == TransactionStatus.PENDING:
+                    if not wait_for_accept:
+                        # if result.block_number is not None:
+                        return result.block_number, status
+                elif status == TransactionStatus.REJECTED:
+                    raise TransactionRejectedError(
+                        message=result.rejection_reason,
+                    )
+                elif status == TransactionStatus.NOT_RECEIVED:
+                    if not first_run:
+                        raise TransactionNotReceivedError()
+                elif status != TransactionStatus.RECEIVED:
+                    # This will never get executed with current possible transactions statuses
+                    raise TransactionFailedError(
+                        message=result.rejection_reason,
+                    )
+
+                first_run = False
+                await asyncio.sleep(check_interval)
+        except asyncio.CancelledError as exc:
+            raise TransactionNotReceivedError from exc
 
 
 @add_sync_methods
@@ -143,17 +196,6 @@ class StarknetTrader(BaseTrader):
             if self.stopped:
                 break
 
-    # @staticmethod
-    # def get_eth_price():
-    #     # json_data = requests.get('https://api.binance.com/api/v3/avgPrice?symbol=ETHUSDT').json()
-    #     json_data = requests.get('https://www.binance.com/api/v3/ticker/price?symbol=ETHUSDT').json()
-    #     return float(json_data['price'])
-    #
-    # @staticmethod
-    # def get_btc_price():
-    #     json_data = requests.get(f'https://www.binance.com/api/v3/ticker/price?symbol=BTCUSDT').json()
-    #     return float(json_data['price'])
-
     def get_tx_url(self, tx_hash):
         if self.testnet:
             return f'https://testnet.starkscan.co/tx/{tx_hash}'
@@ -165,37 +207,6 @@ class StarknetTrader(BaseTrader):
             return f'https://testnet.starkscan.co/contract/{address}'
         else:
             return f'https://starkscan.co/contract/{address}'
-
-    # def _run_project(self, project, account, is_last_project=False):
-    #     eth_price = get_price('ETH')
-    #     # print(project)
-    #     if project['cls'] is None:
-    #         self.back_swap(starknet_account=account.starknet_account,
-    #                        count=project['count'], min_amount_usd=project['amount_usd'])
-    #     elif issubclass(project['cls'], BaseSwap):
-    #         random_amount = random_float(project['amount_usd'][0] / eth_price,
-    #                                      project['amount_usd'][1] / eth_price)
-    #         token_name, token_address = random.choice(list(self.starknet_contracts.items()))
-    #         if project['cls'] == MyswapSwap and not self.testnet:
-    #             token_name = 'DAI'  # only DAI for myswap.xyz for now
-    #             token_address = self.starknet_contracts[token_name]
-    #         self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount:.4f} ETH -> {token_name}')
-    #         self.swap(swap_cls=project['cls'], account=account.starknet_account,
-    #                   amount=random_amount, token_address=token_address,
-    #                   wait_for_tx=True if not is_last_project else False)
-    #     elif (project['cls'] == StarkgateBridge) and account.private_key:
-    #         random_amount = random_float(*project['amount'])
-    #         self.logger.info(f'Bridge Stargate from {project["network"]} -> {random_amount} ETH')
-    #         self.deposit_starkgate(ethereum_private_key=account.private_key,
-    #                                starknet_account=account.starknet_account,
-    #                                amount=random_amount)
-    #     elif (project['cls'] == LayerswapBridge) and account.private_key:
-    #         random_amount = random_float(*project['amount'])
-    #         self.logger.info(f'Bridge Layerswap from {project["network"]} -> {random_amount} ETH')
-    #         self.deposit_layerswap(source_network=project['network'],
-    #                                ethereum_private_key=account.private_key,
-    #                                starknet_account=account.starknet_account,
-    #                                amount=random_amount)
 
     def run(self, projects, wallet_delay=(0, 0), project_delay=(0, 0), shuffle=False, api: DegenSoftApiClient = None):
         self.paused = False
@@ -262,38 +273,6 @@ class StarknetTrader(BaseTrader):
                                            ethereum_private_key=account.private_key,
                                            starknet_account=account.starknet_account,
                                            amount=random_amount)
-                # self._run_project(project, account, is_last_project)
-                # action = 'swap' if project['cls'] is None or issubclass(project['cls'], BaseSwap) else 'bridge'
-                # while 1:
-                #     if self.paused:
-                #         self.process_pause()
-                #     if self.stopped:
-                #         break
-                #     try:
-                #         self.logger.debug(f'{starknet_address} {account.starknet_address}')
-                #         resp = api.new_action(action, [starknet_address, account.starknet_address])
-                #         # print(resp)
-                #         if resp['success']:
-                #             if resp['is_whitelisted']:
-                #                 self.logger.info('Wallet is in the WL')
-                #             else:
-                #                 self.logger.info('Wallet is NOT in the WL')
-                #             try:
-                #                 is_last_project = True if j == len(projects) else False
-                #                 self._run_project(project, account, is_last_project=is_last_project)
-                #             except Exception as ex:
-                #                 self.logger.error(ex)
-                #                 self.logger.info('Points refunding for an unsuccessful action...')
-                #                 api.cancel_last_action()
-                #                 # raise
-                #         else:
-                #             self.logger.error('API error: %s' % resp)
-                #         # break
-                #     except Exception as ex:
-                #         raise
-                #         self.logger.error('API error: %s' % ex)
-                #         self.logger.error('Retry in 60 sec.')
-                #         self.process_pause(60)
                 if j < len(projects):
                     self.random_delay(project_delay)
             if i < len(self.accounts):
@@ -391,18 +370,6 @@ class StarknetTrader(BaseTrader):
         self.logger.info(self.get_tx_url('').replace('/tx/', f'/eth-tx/{tx_hash.hex()}'))
         return tx_hash.hex()
 
-    # @action_decorator('swap')
-    # def swap_eth(self, swap_cls, account, amount, token_address, wait_for_tx=True):
-    #     s = swap_cls(account=account, testnet=self.testnet, eth_contract_address=self.starknet_eth_contract)
-    #     res = s.swap_eth_to_token(amount=Web3.to_wei(amount, 'ether'),
-    #                               token_address=token_address,
-    #                               slippage=self.config.slippage)
-    #     self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
-    #     if wait_for_tx:
-    #         self.logger.debug('Waiting for tx confirmation...')
-    #         self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=3, wait_for_accept=False)
-    #     return hex(res.transaction_hash)
-
     @action_decorator('swap')
     def swap(self, swap_cls, account, amount, token_a_address, token_b_address, wait_for_tx=True):
         s = swap_cls(account=account, testnet=self.testnet, eth_contract_address=self.starknet_eth_contract)
@@ -411,5 +378,5 @@ class StarknetTrader(BaseTrader):
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx:
             self.logger.debug('Waiting for tx confirmation...')
-            self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=5, wait_for_accept=False)
+            self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5, wait_for_accept=False)
         return hex(res.transaction_hash)
