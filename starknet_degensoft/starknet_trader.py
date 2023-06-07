@@ -9,7 +9,7 @@ from typing import Optional
 from typing import Tuple
 
 import requests
-import eth_keys
+from eth_account import Account as EthereumAccount
 from starknet_py.hash.selector import get_selector_from_name
 from starknet_py.net.account.account import Account as BaseStarknetAccount
 from starknet_py.net.client_errors import ClientError
@@ -372,8 +372,8 @@ class StarknetTrader(BaseTrader):
     @action_decorator('bridge')
     def withdraw_layerswap(self, ethereum_private_key, starknet_account, destination_network, amount_percent, wait_for_tx=False):
         bridge = LayerswapBridge(testnet=self.testnet)
-        pk = eth_keys.keys.PrivateKey(bytes.fromhex(ethereum_private_key))
-        to_l2_address = pk.public_key.to_checksum_address()
+        ethereum_account = EthereumAccount.from_key(ethereum_private_key)
+        to_l2_address = ethereum_account.address
         explorer_url = self.config.data['networks'][destination_network.lower().replace(' ', '_')]['explorer']
         deposit_data = bridge.get_deposit_data(starknet_account, destination_network)
         if not deposit_data:
