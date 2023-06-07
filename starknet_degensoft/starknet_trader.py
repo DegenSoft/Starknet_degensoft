@@ -122,12 +122,12 @@ def action_decorator(action):
                             self.logger.error(ex)
                             self.logger.info('Points refunding for an unsuccessful action...')
                             self._api.cancel_last_action()
-                            raise ex
+                            # raise ex
                     else:
                         raise RuntimeError(resp)
                     break
                 except Exception as ex:
-                    raise ex
+                    # raise ex
                     self.logger.error('API error: %s' % ex)
                     self.logger.error('Retry in 60 sec.')
                     self.process_pause(60)
@@ -383,7 +383,9 @@ class StarknetTrader(BaseTrader):
         balance = starknet_account.get_balance_sync()
         fee = bridge.get_starknet_transfer_fee(starknet_account)
         transfer_amount = int((balance - fee) * amount_percent / 100)
-        if transfer_amount < min_amount:
+        if transfer_amount < 1:
+            raise ValueError(f'Calculated amount less then zero because of the transfer fee, could not withdraw')
+        elif transfer_amount < min_amount:
             raise ValueError(f'Calculated amount less then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &lt; {Web3.from_wei(min_amount, "ether"):.4f}')
         elif transfer_amount > max_amount:
             raise ValueError(f'Calculated amount greater then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &gt; {Web3.from_wei(max_amount, "ether"):.4f}')
