@@ -152,6 +152,10 @@
         <translation>Минимальная задержка должна быть меньше или равна максимальной задержке</translation>
     </message>
     <message>
+        <source>Minimum percent must be less then Maximum percent</source>
+        <translation>Минимальный процент должен быть меньше максимального процента</translation>
+    </message>
+    <message>
         <source>Random project</source>
         <translation>Рандомный проект</translation>
     </message>
