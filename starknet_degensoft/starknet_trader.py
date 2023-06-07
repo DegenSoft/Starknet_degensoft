@@ -9,6 +9,7 @@ from typing import Optional
 from typing import Tuple
 
 import requests
+import eth_keys
 from starknet_py.hash.selector import get_selector_from_name
 from starknet_py.net.account.account import Account as BaseStarknetAccount
 from starknet_py.net.client_errors import ClientError
@@ -121,10 +122,12 @@ def action_decorator(action):
                             self.logger.error(ex)
                             self.logger.info('Points refunding for an unsuccessful action...')
                             self._api.cancel_last_action()
+                            raise ex
                     else:
                         raise RuntimeError(resp)
                     break
                 except Exception as ex:
+                    raise ex
                     self.logger.error('API error: %s' % ex)
                     self.logger.error('Retry in 60 sec.')
                     self.process_pause(60)
@@ -191,8 +194,8 @@ class StarknetTrader(BaseTrader):
     def process_pause(self, sec=None):
         for i in range(sec) if sec else 1:
             time.sleep(1)
-            if not self.paused:
-                break
+            # if not self.paused:
+            #     break
             if self.stopped:
                 break
 
@@ -236,6 +239,7 @@ class StarknetTrader(BaseTrader):
                     self.logger.error('Account not deployed yet')
                     break
                 self._api_address = [account.starknet_address, starknet_address]
+                wait_for_tx = False if j == len(projects) else True
 
                 if project['cls'] is None:
                     self.back_swap(starknet_account=account.starknet_account,
@@ -250,7 +254,6 @@ class StarknetTrader(BaseTrader):
                         token_names = tuple(self.starknet_contracts.keys())
                     token_name = random.choice(token_names)
                     token_address = self.starknet_contracts[token_name]
-                    wait_for_tx = False if j == len(projects) else True
                     self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount:.4f} ETH -> {token_name}')
                     # self.swap_eth(swap_cls=project['cls'], account=account.starknet_account,
                     #               amount=random_amount, token_address=token_address,
@@ -267,12 +270,22 @@ class StarknetTrader(BaseTrader):
                                            starknet_account=account.starknet_account,
                                            amount=random_amount)
                 elif (project['cls'] == LayerswapBridge) and account.private_key:
-                    random_amount = random_float(*project['amount'])
-                    self.logger.info(f'Bridge Layerswap from {project["network"]} -> {random_amount} ETH')
-                    self.deposit_layerswap(source_network=project['network'],
-                                           ethereum_private_key=account.private_key,
-                                           starknet_account=account.starknet_account,
-                                           amount=random_amount)
+                    if not project['is_back']:
+                        random_amount = random_float(*project['amount'])
+                        self.logger.info(f'Bridge Layerswap from {project["network"]} -> {random_amount} ETH')
+                        self.deposit_layerswap(source_network=project['network'],
+                                               ethereum_private_key=account.private_key,
+                                               starknet_account=account.starknet_account,
+                                               amount=random_amount)
+                    else:
+                        random_percent = random.randint(*project['amount_percent'])
+                        self.logger.info(
+                            f'Back bridge Layerswap to {project["network"]} -> {random_percent}% of balance')
+                        self.withdraw_layerswap(ethereum_private_key=account.private_key,
+                                                starknet_account=account.starknet_account,
+                                                destination_network=project['network'],
+                                                amount_percent=random_percent,
+                                                wait_for_tx=wait_for_tx)
                 if j < len(projects):
                     self.random_delay(project_delay)
             if i < len(self.accounts):
@@ -355,6 +368,35 @@ class StarknetTrader(BaseTrader):
         tx_hash = bridge.deposit(account=account, amount=amount, to_l2_address=hex(starknet_account.address))
         self.logger.info(node.get_explorer_transaction_url(tx_hash))
         return tx_hash.hex()
+
+    @action_decorator('bridge')
+    def withdraw_layerswap(self, ethereum_private_key, starknet_account, destination_network, amount_percent, wait_for_tx=False):
+        bridge = LayerswapBridge(testnet=self.testnet)
+        pk = eth_keys.keys.PrivateKey(bytes.fromhex(ethereum_private_key))
+        to_l2_address = pk.public_key.to_checksum_address()
+        deposit_data = bridge.get_deposit_data(starknet_account, destination_network)
+        if not deposit_data:
+            raise ValueError('some error in Layerswap bridge call')
+        min_amount = Web3.to_wei(deposit_data['MinAmount'], 'ether')
+        max_amount = Web3.to_wei(deposit_data['MaxAmount'], 'ether')
+        # fee_amount = Web3.to_wei(deposit_data['FeeAmount'], 'ether')
+        balance = starknet_account.get_balance_sync()
+        fee = bridge.get_starknet_transfer_fee(starknet_account)
+        transfer_amount = int((balance - fee) * amount_percent / 100)
+        if transfer_amount < min_amount:
+            raise ValueError(f'Calculated amount less then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &lt; {Web3.from_wei(min_amount, "ether"):.4f}')
+        elif transfer_amount > max_amount:
+            raise ValueError(f'Calculated amount greater then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &gt; {Web3.from_wei(max_amount, "ether"):.4f}')
+        self.logger.debug(f'Amount is {Web3.from_wei(transfer_amount, "ether"):.4f} ETH')
+        print(type(Web3.from_wei(transfer_amount, 'ether')))
+        tx_hash = bridge.deposit(account=starknet_account, amount=Web3.from_wei(transfer_amount, 'ether'),
+                                 to_l2_address=to_l2_address, to_network=destination_network)
+        self.logger.info(self.get_tx_url(tx_hash))
+        if wait_for_tx:
+            if wait_for_tx:
+                self.logger.debug('Waiting for tx confirmation...')
+                self.starknet_client.wait_for_pending_tx_sync(int(tx_hash, base=16), check_interval=5)
+        return tx_hash
 
     @action_decorator('bridge')
     def deposit_starkgate(self, ethereum_private_key, starknet_account, amount):

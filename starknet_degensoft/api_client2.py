@@ -67,11 +67,12 @@ class DegenSoftApiClient:
             # print("request payload", endpoint, payload)
             res = requests.post(url, data=payload)
 
-        # print(res.text)
+        if not res.ok:
+            raise DegenSoftApiError(f'HTTP error: {res.status_code} code')
         try:
             response = res.json()
-        except Exception:
-            response = {}
+        except Exception as ex:
+            raise ex
         server_hash = self.make_server_hash(endpoint, response, payload.get("client_seed", 0))
         if server_hash != response.get("hash", ""):
             raise DegenSoftApiError("DegenSoft API hashes doesn't match")

@@ -52,6 +52,9 @@ class StarknetToken:
     def prepare_approve_tx(self, amount, trade_address):
         return self.contract.functions['approve'].prepare(spender=int(trade_address, base=16), amount=amount)
 
+    def prepare_transfer_tx(self, amount, to_address):
+        return self.contract.functions['transfer'].prepare(recipient=int(to_address, base=16), amount=amount)
+
     @property
     def address(self):
         return self.contract.address
@@ -72,7 +75,7 @@ class StarknetToken:
         return native_amount / 10 ** self.decimals
 
     def balance(self):
-        return self.contract.functions['balanceOf'].call_sync(self.contract.account.address)[0]
+        return self.contract.functions['balanceOf'].call_sync(self.contract.account.address, block_hash='pending')[0]
 
 
 class BaseSwap:
@@ -165,32 +168,6 @@ class MyswapSwap(BaseSwap):
         invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
         return self.account.client.send_transaction_sync(invoke)
 
-    # def swap_eth_to_token(self, amount, token_address='0x0', slippage=2.0):
-    #     try:
-    #         pool_id = self._token_pool_mapping[token_address]
-    #     except KeyError:
-    #         raise ValueError(f'no such token for myswap: {token_address}')
-    #     self.check_balance(amount)
-    #     pool_data = self.contract.functions['get_pool'].call_sync(pool_id=pool_id, block_number='pending')
-    #     # print(pool_data)
-    #     amount_to = uniswap_v2_calculate_tokens_and_price(
-    #         x=pool_data.pool['token_b_reserves'],
-    #         y=pool_data.pool['token_a_reserves'],
-    #         amount_x=amount,
-    #         fee=pool_data.pool['fee_percentage'] / 1000 / 100)
-    #     amount_to_min = int(amount_to * (1 - slippage / 100.0))
-    #     # print(amount_to, amount_to_min)
-    #     approve_prepared_tx = self.get_prepared_approve_tx(amount=amount, token_address=self.eth_contract_address)
-    #     swap_prepared_tx = self.contract.functions['swap'].prepare(
-    #         pool_id=pool_id,
-    #         token_from_addr=int(self.eth_contract_address, base=16),
-    #         amount_from=amount,
-    #         amount_to_min=amount_to_min
-    #     )
-    #     calls = [approve_prepared_tx, swap_prepared_tx]
-    #     invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
-    #     return self.account.client.send_transaction_sync(invoke)
-
     def swap_eth_to_token(self, amount, token_address='0x0', slippage=2.0):
         return self.swap(amount=amount,
                          token_a_address=self.eth_contract_address,
@@ -212,22 +189,6 @@ class UniswapForkBaseSwap(BaseSwap):
     def swap_eth_to_token(self, amount, token_address, slippage=2.0):
         return self.swap(amount=amount, token_a_address=self.eth_contract_address,
                          token_b_address=token_address, slippage=slippage)
-        # self.check_balance(amount)
-        # deadline = self.account.client.get_block_sync(block_number='latest').timestamp + 60 * 60  # 60 minutes
-        # path = [int(self.eth_contract_address, base=16), int(token_address, base=16)]
-        # res = self.contract.functions[self._amounts_function_name].call_sync(amountIn=amount, path=path)
-        # amount_out_min = int(res.amounts[1] * (1 - slippage / 100.0))
-        # approve_prepared_tx = self.get_prepared_approve_tx(amount=amount, token_address=self.eth_contract_address)
-        # swap_prepared_tx = self.contract.functions[self._swap_function_name].prepare(
-        #     amountIn=amount,
-        #     amountOutMin=amount_out_min,
-        #     path=path,
-        #     to=self.account.address,
-        #     deadline=deadline
-        # )
-        # calls = [approve_prepared_tx, swap_prepared_tx]
-        # invoke = self.account.sign_invoke_transaction_sync(calls=calls, auto_estimate=True)
-        # return self.account.client.send_transaction_sync(invoke)
 
     def swap(self, amount, token_a_address, token_b_address, slippage=2.0):
         deadline = self.account.client.get_block_sync(block_number='latest').timestamp + 60 * 60  # 60 minutes

@@ -58,13 +58,14 @@ class TraderThread(QThread):
     task_completed = pyqtSignal()
     # logger_signal = pyqtSignal(str)
 
-    def __init__(self, api, trader, config, swaps, bridges):
+    def __init__(self, api, trader, config, swaps, bridges, back_bridges):
         super().__init__()
         self.api = api
         self.trader = trader
         self.config = config
         self.swaps = swaps
         self.bridges = bridges
+        self.back_bridges = back_bridges
         self.paused = False
         self.logger = logging.getLogger('starknet')
         # self.handler = QtSignalLogHandler(signal=self.logger_signal)
@@ -88,7 +89,15 @@ class TraderThread(QThread):
             if self.config[f'bridge_{key}_checkbox']:
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
                 bridge_amount = (self.config[f'min_eth_{key}_selector'], self.config[f'max_eth_{key}_selector'])
-                projects.append(dict(cls=self.bridges[key]['cls'], network=bridge_network_name, amount=bridge_amount))
+                projects.append(dict(cls=self.bridges[key]['cls'], network=bridge_network_name,
+                                     amount=bridge_amount, is_back=False))
+        for key in random.sample(list(self.back_bridges), len(self.back_bridges)):
+            if self.config[f'back_bridge_{key}_checkbox']:
+                back_bridge_network_name = self.back_bridges[key]['networks'][self.config[f'back_bridge_{key}_network']]
+                back_bridge_percent = (self.config[f'min_percent_{key}_selector'],
+                                       self.config[f'max_percent_{key}_selector'])
+                projects.append(dict(cls=self.back_bridges[key]['cls'], network=back_bridge_network_name,
+                                     amount_percent=back_bridge_percent, is_back=True))
         if self.config['backswaps_checkbox']:
             projects.append(dict(cls=None,
                                  count=self.config['backswaps_count_spinbox'],
@@ -150,6 +159,16 @@ class MainWindow(QMainWindow):
         }
     }
 
+    back_bridges = {
+        'layerswap': {
+            'name': 'Layerswap.io',
+            'cls': LayerswapBridge,
+            'networks': ['Arbitrum One',
+                         'Arbitrum Nova',
+                         'Ethereum']
+        }
+    }
+
     swaps = {
         'myswap': {'name': 'myswap.xyz', 'cls': MyswapSwap},
         '10kswap': {'name': '10kswap', 'cls': TenKSwap},
@@ -163,6 +182,7 @@ class MainWindow(QMainWindow):
         'api_key_checkbox': "hide",
         'private_keys_label': "Private keys file",
         'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
+        'back_bridges_label': "Select bridge and destination network to withdraw ETH from Starknet",
         'quests_label': "Select quests",
         'backswaps_label': "Back swap tokens to ETH",
         'backswaps_checkbox': "Make swap tokens to ETH",
@@ -180,6 +200,8 @@ class MainWindow(QMainWindow):
         'max_eth_label': "max ETH:",
         'min_price_label': "min $:",
         'max_price_label': "max $:",
+        'min_percent_layerswap_label': "min %:",
+        'max_percent_layerswap_label': "max %:",
         'shuffle_checkbox': "Shuffle wallets",
         # 'select_file_button': "Select File",
         'select_file_button': "Import wallets",
@@ -351,6 +373,43 @@ class MainWindow(QMainWindow):
             layout.addLayout(bridge_layout)
 
         layout.addWidget(QSplitter())
+        back_bridges_label = QLabel()
+        back_bridges_label.setFont(bold_font)
+        layout.addWidget(back_bridges_label)
+        self.widgets_tr['back_bridges_label'] = back_bridges_label
+
+        for key in self.back_bridges:
+            back_bridge_layout = QHBoxLayout()
+            back_bridge_checkbox = QCheckBox(self.back_bridges[key]['name'])
+            back_bridge_layout.addWidget(back_bridge_checkbox)
+            back_bridge_dropdown = QComboBox()
+            for network in self.back_bridges[key]['networks']:
+                back_bridge_dropdown.addItem(network)
+            back_bridge_layout.addWidget(back_bridge_dropdown)
+            min_percent_label = QLabel()
+            max_percent_label = QLabel()
+            min_percent_selector = QSpinBox()
+            min_percent_selector.setRange(1, 100)
+            max_percent_selector = QSpinBox()
+            max_percent_selector.setRange(1, 100)
+            back_bridge_layout.addWidget(min_percent_label)
+            back_bridge_layout.addWidget(min_percent_selector)
+            back_bridge_layout.addWidget(max_percent_label)
+            back_bridge_layout.addWidget(max_percent_selector)
+            back_bridge_layout.setStretch(0, 1)
+            back_bridge_layout.setStretch(1, 1)
+            self.widgets_tr[f'min_percent_{key}_label'] = min_percent_label
+            self.widgets_tr[f'max_percent_{key}_label'] = max_percent_label
+            self.widgets_config[f'back_bridge_{key}_checkbox'] = back_bridge_checkbox
+            self.widgets_config[f'back_bridge_{key}_network'] = back_bridge_dropdown
+            self.widgets_config[f'min_percent_{key}_selector'] = min_percent_selector
+            self.widgets_config[f'max_percent_{key}_selector'] = max_percent_selector
+            self.back_bridges[key]['checkbox'] = back_bridge_checkbox
+            self.back_bridges[key]['min_percent'] = min_percent_selector
+            self.back_bridges[key]['max_percent'] = max_percent_selector
+            layout.addLayout(back_bridge_layout)
+
+        layout.addWidget(QSplitter())
         quests_label = QLabel()
         quests_label.setFont(bold_font)
         self.widgets_tr['quests_label'] = quests_label
@@ -509,7 +568,6 @@ class MainWindow(QMainWindow):
             self.widgets_tr[widget_name].setText(self.tr(self.messages[widget_name]))
 
     def _log(self, message):
-        # todo: fix bug with links
         self.log_line += 1
         message = convert_urls_to_links(message)
         if self.widgets_config['api_key_checkbox'].isChecked():
@@ -552,8 +610,14 @@ class MainWindow(QMainWindow):
             self.show_error_message(self.tr("Failed to load private keys CSV file: ") + str(ex))
             return
         for key in self.bridges:
-            if conf[f'bridge_{key}_checkbox'] and not (0 < conf[f'min_eth_{key}_selector'] <= conf[f'max_eth_{key}_selector']):
+            if conf[f'bridge_{key}_checkbox'] and not (
+                    0 < conf[f'min_eth_{key}_selector'] <= conf[f'max_eth_{key}_selector']):
                 self.show_error_message(self.tr("Minimum ETH amount must be non-zero and less then Maximum ETH amount"))
+                return
+        for key in self.back_bridges:
+            if conf[f'back_bridge_{key}_checkbox'] and not (
+                    0 < conf[f'min_percent_{key}_selector'] <= conf[f'max_percent_{key}_selector']):
+                self.show_error_message(self.tr("Minimum percent must be less then Maximum percent"))
                 return
         for key in self.swaps:
             if conf[f'swap_{key}_checkbox'] and not (0 < conf[f'min_price_{key}_selector'] <= conf[f'max_price_{key}_selector']):
@@ -568,7 +632,7 @@ class MainWindow(QMainWindow):
         self.widgets_tr['pause_button'].setDisabled(False)
         self.widgets_tr['stop_button'].setDisabled(False)
         self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api, config=conf,
-                                          swaps=self.swaps, bridges=self.bridges)
+                                          swaps=self.swaps, bridges=self.bridges, back_bridges=self.back_bridges)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
         # self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
@@ -608,6 +672,7 @@ class MainWindow(QMainWindow):
     def _set_swap_checkboxes(self, disabled: bool):
         for key in self.swaps:
             self.swaps[key]['checkbox'].setDisabled(disabled)
+        self.widgets_config['random_swap_checkbox'].setDisabled(disabled)
 
     def on_open_file_clicked(self):
         options = QFileDialog.Options()
