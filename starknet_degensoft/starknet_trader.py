@@ -32,7 +32,7 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
 from starknet_degensoft.trader import BaseTrader
-from starknet_degensoft.utils import random_float
+from starknet_degensoft.utils import random_float, get_explorer_address_url
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
 
@@ -374,6 +374,7 @@ class StarknetTrader(BaseTrader):
         bridge = LayerswapBridge(testnet=self.testnet)
         pk = eth_keys.keys.PrivateKey(bytes.fromhex(ethereum_private_key))
         to_l2_address = pk.public_key.to_checksum_address()
+        explorer_url = self.config.data['networks'][destination_network.lower().replace(' ', '_')]['explorer']
         deposit_data = bridge.get_deposit_data(starknet_account, destination_network)
         if not deposit_data:
             raise ValueError('some error in Layerswap bridge call')
@@ -394,6 +395,7 @@ class StarknetTrader(BaseTrader):
         tx_hash = bridge.deposit(account=starknet_account, amount=Web3.from_wei(transfer_amount, 'ether'),
                                  to_l2_address=to_l2_address, to_network=destination_network)
         self.logger.info(self.get_tx_url(tx_hash))
+        self.logger.debug(get_explorer_address_url(to_l2_address, explorer_url))
         if wait_for_tx:
             if wait_for_tx:
                 self.logger.debug('Waiting for tx confirmation...')
