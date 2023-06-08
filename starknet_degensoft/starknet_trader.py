@@ -26,7 +26,7 @@ from starknet_py.utils.sync import add_sync_methods
 from web3 import Web3
 
 from starknet_degensoft.api import Account, Node
-from starknet_degensoft.api_client2 import DegenSoftApiClient
+from starknet_degensoft.api_client2 import DegenSoftApiClient, DegenSoftApiError
 from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
@@ -117,14 +117,28 @@ def action_decorator(action):
                         else:
                             self.logger.info('Wallet is NOT in the WL')
                         try:
-                            return func(self, *args, **kwargs)
+                            # transaction limit exception handler
+                            attempt = 1
+                            while True:
+                                try:
+                                    return func(self, *args, **kwargs)
+                                except ClientError as ex:
+                                    if 'StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED' in ex.message and attempt <= 3:
+                                        random_delay = random.randint(30, 60)
+                                        self.logger.debug(f'Starknet RPC Error: StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED. Retry in {random_delay} sec.')
+                                        self.process_pause(random_delay)
+                                    else:
+                                        raise ex
+                                except Exception as ex:
+                                    raise ex
+                                attempt += 1
                         except Exception as ex:
                             self.logger.error(ex)
                             self.logger.info('Points refunding for an unsuccessful action...')
                             self._api.cancel_last_action()
                             # raise ex
                     else:
-                        raise RuntimeError(resp)
+                        raise DegenSoftApiError(resp)
                     break
                 except Exception as ex:
                     # raise ex
