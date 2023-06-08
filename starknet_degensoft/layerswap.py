@@ -188,8 +188,8 @@ class LayerswapBridge:
         # print(hex(tx.transaction_hash))
         return tx
 
-    def get_starknet_transfer_fee(self, account):
+    def get_starknet_transfer_fee(self, account, address):
         # hack to get transfer fee
-        invoke = self._get_transfer_starknet_invoke(account, '0xac1b12A9D74AD4f7fD67fD1A730a2A866adBa632',
+        invoke = self._get_transfer_starknet_invoke(account, address,
                                                     amount=0.00001, sequence_number=100)
         return invoke.max_fee

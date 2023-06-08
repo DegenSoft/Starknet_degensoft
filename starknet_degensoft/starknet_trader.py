@@ -382,7 +382,7 @@ class StarknetTrader(BaseTrader):
         max_amount = Web3.to_wei(deposit_data['MaxAmount'], 'ether')
         # fee_amount = Web3.to_wei(deposit_data['FeeAmount'], 'ether')
         balance = starknet_account.get_balance_sync()
-        fee = bridge.get_starknet_transfer_fee(starknet_account)
+        fee = bridge.get_starknet_transfer_fee(starknet_account, to_l2_address)
         transfer_amount = int((balance - fee) * amount_percent / 100)
         if transfer_amount < 1:
             raise ValueError(f'Calculated amount less then zero because of the transfer fee, could not withdraw')
