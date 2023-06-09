@@ -1,4 +1,4 @@
 PyQt5==5.15.9
-starknet-py
+starknet-py==0.16.0a0
 web3==6.2.0
 colorlog
