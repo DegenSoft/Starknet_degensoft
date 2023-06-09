@@ -1,2 +1,0 @@
-SOURCES = gui.py
-TRANSLATIONS = ru.ts

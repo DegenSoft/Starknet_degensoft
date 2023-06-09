@@ -1,10 +1,9 @@
 import logging
-import os
 import random
 import sys
 
 from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
-from PyQt5.QtCore import QTranslator, QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QStyleFactory, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
@@ -16,7 +15,7 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
 from starknet_degensoft.starknet_trader import StarknetTrader
-from starknet_degensoft.utils import setup_file_logging, log_formatter, resource_path, convert_urls_to_links,\
+from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
     mask_hex_in_string
 
 
@@ -176,38 +175,88 @@ class MainWindow(QMainWindow):
     }
 
     messages = {
-        'window_title': "StarkNet DegenSoft",
-        'language_label': "Language",
-        'api_key_label': "API Key (you can get it via <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
-        'api_key_checkbox': "hide",
-        'private_keys_label': "Private keys file",
-        'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
-        'back_bridges_label': "Select bridge and destination network to withdraw ETH from Starknet",
-        'quests_label': "Select quests",
-        'backswaps_label': "Back swap tokens to ETH",
-        'backswaps_checkbox': "Make swap tokens to ETH",
-        'backswaps_usd_label': "Minimum token USD price:",
-        'backswaps_count_label': "Amount of swaps (random tokens):",
-        'options_label': "Options",
-        'wallet_delay_label': "Wallet delay",
-        'project_delay_label': "Project delay",
-        'wallet_delay_min_sec_label': "min sec:",
-        'project_delay_min_sec_label': "min sec:",
-        'wallet_delay_max_sec_label': "max sec:",
-        'project_delay_max_sec_label': "max sec:",
-        'random_swap_checkbox': "Random project",
-        'min_eth_label': "min ETH:",
-        'max_eth_label': "max ETH:",
-        'min_price_label': "min $:",
-        'max_price_label': "max $:",
-        'min_percent_layerswap_label': "min %:",
-        'max_percent_layerswap_label': "max %:",
-        'shuffle_checkbox': "Shuffle wallets",
-        # 'select_file_button': "Select File",
-        'select_file_button': "Import wallets",
-        'start_button': "Start",
-        'stop_button': "Stop",
-        'pause_button': "Pause/Continue"
+        'en': {
+            'window_title': "StarkNet DegenSoft",
+            'language_label': "Language",
+            'api_key_label': "API Key (you can get it via <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
+            'api_key_checkbox': "hide",
+            'private_keys_label': "Private keys file",
+            'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
+            'back_bridges_label': "Select bridge and destination network to withdraw ETH from Starknet",
+            'quests_label': "Select quests",
+            'backswaps_label': "Back swap tokens to ETH",
+            'backswaps_checkbox': "Make swap tokens to ETH",
+            'backswaps_usd_label': "Minimum token USD price:",
+            'backswaps_count_label': "Amount of swaps (random tokens):",
+            'options_label': "Options",
+            'wallet_delay_label': "Wallet delay",
+            'project_delay_label': "Project delay",
+            'wallet_delay_min_sec_label': "min sec:",
+            'project_delay_min_sec_label': "min sec:",
+            'wallet_delay_max_sec_label': "max sec:",
+            'project_delay_max_sec_label': "max sec:",
+            'random_swap_checkbox': "Random project",
+            'min_eth_label': "min ETH:",
+            'max_eth_label': "max ETH:",
+            'min_price_label': "min $:",
+            'max_price_label': "max $:",
+            'min_percent_layerswap_label': "min %:",
+            'max_percent_layerswap_label': "max %:",
+            'shuffle_checkbox': "Shuffle wallets",
+            'select_file_button': "Import wallets",
+            'start_button': "Start",
+            'stop_button': "Stop",
+            'pause_button': "Pause/Continue",
+            'apikey_error': 'You must set API key!',
+            'api_error': 'Bad API key or API error: ',
+            'file_error': 'You must select file with private keys!',
+            'csv_error': 'Failed to load private keys CSV file: ',
+            'minmax_eth_error': 'Minimum ETH amount must be non-zero and less then Maximum ETH amount',
+            'minmax_percent_error': 'Minimum percent must be less then Maximum percent',
+            'minmax_usd_error': 'Minimum USD$ amount must be non-zero and less then Maximum USD$ amount',
+            'minmax_delay_error': 'Minimum delay must be less or equal maximum delay',
+        },
+        'ru': {
+            'window_title': "StarkNet Дегенсофт",
+            'language_label': "Язык",
+            'api_key_label': "API ключ (вы можете получить его через <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
+            'api_key_checkbox': "скрыть",
+            'private_keys_label': "Файл приватных ключей",
+            'bridges_label': "Выберете мост и сеть в которой у вас есть ETH для перевода в Starknet",
+            'back_bridges_label': "Выберете мост и сеть в которую переводить ETH из Starknet",
+            'quests_label': "Выберете квесты",
+            'backswaps_label': "Обмен токенов обратно в ETH",
+            'backswaps_checkbox': "Сделать свап токенов в ETH",
+            'backswaps_usd_label': "Минимальная цена токена в USD:",
+            'backswaps_count_label': "Количество свапов в ETH (рандомный выбор токенов):",
+            'options_label': "Настройки",
+            'wallet_delay_label': "Задержка между кошельками",
+            'project_delay_label': "Задержка между проектами",
+            'wallet_delay_min_sec_label': "мин сек:",
+            'project_delay_min_sec_label': "мин сек:",
+            'wallet_delay_max_sec_label': "макс сек:",
+            'project_delay_max_sec_label': "макс сек:",
+            'random_swap_checkbox': "Рандомный проект",
+            'min_eth_label': "мин ETH:",
+            'max_eth_label': "макс ETH:",
+            'min_price_label': "мин $:",
+            'max_price_label': "макс $:",
+            'min_percent_layerswap_label': "мин %:",
+            'max_percent_layerswap_label': "макс %:",
+            'shuffle_checkbox': "Перемешать кошельки",
+            'select_file_button': "Импорт кошельков",
+            'start_button': "Старт",
+            'stop_button': "Стоп",
+            'pause_button': "Пауза/Продолжить",
+            'apikey_error': 'Вы должны ввести API ключ!',
+            'api_error': 'Неправильный ключ API или ошибка API: ',
+            'file_error': 'Вы должны выбрать файл приватных ключей!',
+            'csv_error': 'Не удалось загрузить CSV файл приватных ключей: ',
+            'minmax_eth_error': 'Минимальная сумма ETH должна быть больше нуля и меньше Максимальной суммы ETH',
+            'minmax_percent_error': 'Минимальный процент должен быть меньше максимального процента',
+            'minmax_usd_error': 'Минимальная USD$ сумма должна быть больше нуля и меньше максимальной USD$ суммы',
+            'minmax_delay_error': 'Минимальная задержка должна быть меньше или равна максимальной задержке',
+        }
     }
 
     def __init__(self):
@@ -227,15 +276,16 @@ class MainWindow(QMainWindow):
         startnet_logger.addHandler(handler)
         self.logger_signal.connect(self._log)
 
-        for bridge_name in self.bridges:
-            self.messages[f'min_eth_{bridge_name}_label'] = self.messages['min_eth_label']
-            self.messages[f'max_eth_{bridge_name}_label'] = self.messages['max_eth_label']
-        for swap_name in self.swaps:
-            self.messages[f'min_price_{swap_name}_label'] = self.messages['min_price_label']
-            self.messages[f'max_price_{swap_name}_label'] = self.messages['max_price_label']
+        for lang in ('ru', 'en'):
+            for bridge_name in self.bridges:
+                self.messages[lang][f'min_eth_{bridge_name}_label'] = self.messages[lang]['min_eth_label']
+                self.messages[lang][f'max_eth_{bridge_name}_label'] = self.messages[lang]['max_eth_label']
+            for swap_name in self.swaps:
+                self.messages[lang][f'min_price_{swap_name}_label'] = self.messages[lang]['min_price_label']
+                self.messages[lang][f'max_price_{swap_name}_label'] = self.messages[lang]['max_price_label']
         self.widgets_tr = {}
         self.widgets_config = {}
-        self.translator = QTranslator()
+        self.language = 'en'
         self.init_ui()
         self.retranslate_ui()
         self.load_config()
@@ -553,19 +603,16 @@ class MainWindow(QMainWindow):
 
     def change_language(self, index):
         languages = ["en", "ru"]
-        lang = languages[index]
-        load_status = self.translator.load(resource_path(os.path.join('starknet_degensoft', 'locale', f'{lang}.qm')))
-        if load_status:
-            QApplication.instance().installTranslator(self.translator)
+        self.language = languages[index]
         self.retranslate_ui()
 
     def retranslate_ui(self):
-        self.setWindowTitle(self.tr(self.messages.get('window_title')))
+        self.setWindowTitle(self.tr(self.messages[self.language].get('window_title')))
         for widget_name in self.widgets_tr:
-            if widget_name not in self.messages:
+            if widget_name not in self.messages[self.language]:
                 continue
             # if widget_name.endswith('_label') or widget_name.endswith('_button'):
-            self.widgets_tr[widget_name].setText(self.tr(self.messages[widget_name]))
+            self.widgets_tr[widget_name].setText(self.tr(self.messages[self.language][widget_name]))
 
     def _log(self, message):
         self.log_line += 1
@@ -591,7 +638,7 @@ class MainWindow(QMainWindow):
         conf = self.get_config(check_enabled_widget=True)
         self.logger.info('Start button clicked')
         if not conf['api_key']:
-            self.show_error_message(self.tr("You must set API key!"))
+            self.show_error_message(self.messages[self.language]['apikey_error'])
             return
         try:
             degensoft_api = DegenSoftApiClient(api_key=conf['api_key'])
@@ -599,33 +646,33 @@ class MainWindow(QMainWindow):
             self.logger.info(f'API Username: {user_info["user"]}, Points: {user_info["points"]}, '
                              f'Premium points: {user_info["prem_points"]}')
         except Exception as ex:
-            self.show_error_message(self.tr("Bad API key or API error: ") + str(ex))
+            self.show_error_message(self.messages[self.language]['api_error'] + str(ex))
             return
         if not conf['file_name']:
-            self.show_error_message(self.tr("You must select file with private keys!"))
+            self.show_error_message(self.messages[self.language]['file_error'])
             return
         try:
             self.trader.load_private_keys_csv(conf['file_name'])
         except Exception as ex:
-            self.show_error_message(self.tr("Failed to load private keys CSV file: ") + str(ex))
+            self.show_error_message(self.messages[self.language]['csv_error'] + str(ex))
             return
         for key in self.bridges:
             if conf[f'bridge_{key}_checkbox'] and not (
                     0 < conf[f'min_eth_{key}_selector'] <= conf[f'max_eth_{key}_selector']):
-                self.show_error_message(self.tr("Minimum ETH amount must be non-zero and less then Maximum ETH amount"))
+                self.show_error_message(self.messages[self.language]['minmax_eth_error'])
                 return
         for key in self.back_bridges:
             if conf[f'back_bridge_{key}_checkbox'] and not (
                     0 < conf[f'min_percent_{key}_selector'] <= conf[f'max_percent_{key}_selector']):
-                self.show_error_message(self.tr("Minimum percent must be less then Maximum percent"))
+                self.show_error_message(self.messages[self.language]['minmax_percent_error'])
                 return
         for key in self.swaps:
             if conf[f'swap_{key}_checkbox'] and not (0 < conf[f'min_price_{key}_selector'] <= conf[f'max_price_{key}_selector']):
-                self.show_error_message(self.tr("Minimum USD$ amount must be non-zero and less then Maximum USD$ amount"))
+                self.show_error_message(self.messages[self.language]['minmax_usd_error'])
                 return
         for key in ('wallet_delay', 'project_delay'):
             if conf[f'{key}_min_sec'] != 0 and conf[f'{key}_min_sec'] > conf[f'{key}_max_sec']:
-                self.show_error_message(self.tr("Minimum delay must be less or equal maximum delay"))
+                self.show_error_message(self.messages[self.language]['minmax_delay_error'])
                 return
         # return
         self.widgets_tr['start_button'].setDisabled(True)
