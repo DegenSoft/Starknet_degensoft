@@ -1,28 +1,15 @@
 # -*- coding: utf-8 -*-
-import asyncio
 import csv
 import logging
 import random
 import time
 from collections import namedtuple
-from typing import Optional
-from typing import Tuple
 
 import requests
 from eth_account import Account as EthereumAccount
-from starknet_py.hash.selector import get_selector_from_name
-from starknet_py.net.account.account import Account as BaseStarknetAccount
 from starknet_py.net.client_errors import ClientError
-from starknet_py.net.client_models import Call
-from starknet_py.net.client_models import Hash
-from starknet_py.net.client_models import TransactionStatus
-from starknet_py.net.gateway_client import GatewayClient as BaseGatewayClient
-from starknet_py.net.models import parse_address
 from starknet_py.net.models.chains import StarknetChainId
 from starknet_py.net.signer.stark_curve_signer import KeyPair
-from starknet_py.transaction_exceptions import TransactionFailedError, TransactionRejectedError
-from starknet_py.transaction_exceptions import TransactionNotReceivedError
-from starknet_py.utils.sync import add_sync_methods
 from web3 import Web3
 
 from starknet_degensoft.api import Account, Node
@@ -30,75 +17,12 @@ from starknet_degensoft.api_client2 import DegenSoftApiClient, DegenSoftApiError
 from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
+from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
 from starknet_degensoft.trader import BaseTrader
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
-
-
-@add_sync_methods
-class GatewayClient(BaseGatewayClient):
-    async def wait_for_pending_tx(
-        self,
-        tx_hash: Hash,
-        wait_for_accept: Optional[bool] = False,
-        check_interval=5,
-    ) -> Tuple[int, TransactionStatus]:
-        if check_interval <= 0:
-            raise ValueError("Argument check_interval has to be greater than 0.")
-
-        first_run = True
-        try:
-            while True:
-                result = await self.get_transaction_receipt(tx_hash=tx_hash)
-                status = result.status
-
-                if status in (
-                    TransactionStatus.ACCEPTED_ON_L1,
-                    TransactionStatus.ACCEPTED_ON_L2,
-                ):
-                    assert result.block_number is not None
-                    return result.block_number, status
-                if status == TransactionStatus.PENDING:
-                    if not wait_for_accept:
-                        # if result.block_number is not None:
-                        return result.block_number, status
-                elif status == TransactionStatus.REJECTED:
-                    raise TransactionRejectedError(
-                        message=result.rejection_reason,
-                    )
-                elif status == TransactionStatus.NOT_RECEIVED:
-                    if not first_run:
-                        raise TransactionNotReceivedError()
-                elif status != TransactionStatus.RECEIVED:
-                    # This will never get executed with current possible transactions statuses
-                    raise TransactionFailedError(
-                        message=result.rejection_reason,
-                    )
-
-                first_run = False
-                await asyncio.sleep(check_interval)
-        except asyncio.CancelledError as exc:
-            raise TransactionNotReceivedError from exc
-
-
-@add_sync_methods
-class StarknetAccount(BaseStarknetAccount):
-    async def is_deployed(self):
-        try:
-            await self._client.call_contract(Call(
-                to_addr=parse_address(self.address),
-                selector=get_selector_from_name('test_call_to_something'),
-                calldata=[]
-            ))
-            return True
-        except ClientError as ex:
-            if 'StarknetErrorCode.UNINITIALIZED_CONTRACT' in ex.message:
-                return False
-            elif 'StarknetErrorCode.ENTRY_POINT_NOT_FOUND_IN_CONTRACT' in ex.message:
-                return True
-        return False
 
 
 def action_decorator(action):
@@ -164,8 +88,9 @@ class StarknetTrader(BaseTrader):
         self.testnet = testnet
         self._api = None
         self._api_address = None
-        self.starknet_client = GatewayClient('testnet' if testnet else
-                                             random.choice(self.config.networks.starknet.rpc))
+        rpc_url = random.choice(self.config.networks.starknet.rpc) if not testnet else \
+            random.choice(self.config.networks.starknet_goerli.rpc)
+        self.starknet_client = GatewayClient(rpc_url) if '.starknet.io' in rpc_url else FullNodeClient(rpc_url)
         self.starknet_contracts = self.config.data['starknet_contracts']['goerli' if testnet else 'mainnet'].copy()
         self.starknet_eth_contract = self.starknet_contracts.pop('ETH')
         self.logger = logging.getLogger('starknet')
@@ -263,7 +188,8 @@ class StarknetTrader(BaseTrader):
                     random_amount = random_float(project['amount_usd'][0] / eth_price,
                                                  project['amount_usd'][1] / eth_price)
                     if project['cls'] == MyswapSwap:
-                        token_names = ('DAI', 'USDC', 'USDT')
+                        token_names = list(self.starknet_contracts.keys())
+                        token_names.remove('WBTC')
                     else:
                         token_names = tuple(self.starknet_contracts.keys())
                     token_name = random.choice(token_names)

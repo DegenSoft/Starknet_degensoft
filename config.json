@@ -3,9 +3,15 @@
   "networks": {
     "starknet": {
       "rpc": [
-        "https://alpha-mainnet.starknet.io"
+        "https://starknet-mainnet.infura.io/v3/c258d2e1c54e42f480c747bd1a276b0e"
       ],
       "explorer": "https://starkscan.co/"
+    },
+    "starknet_goerli": {
+      "rpc": [
+        "https://starknet-goerli.infura.io/v3/c258d2e1c54e42f480c747bd1a276b0e"
+      ],
+      "explorer": "https://testnet.starkscan.co/"
     },
     "ethereum": {
       "rpc": [
@@ -56,16 +62,16 @@
   "gui_config": {
     "language_selector": 1,
     "api_key": "8JN4HZS46MB",
-    "api_key_checkbox": false,
+    "api_key_checkbox": true,
     "bridge_starkgate_checkbox": false,
     "bridge_starkgate_network": 0,
-    "min_eth_starkgate_selector": 0.0125,
-    "max_eth_starkgate_selector": 0.0235,
+    "min_eth_starkgate_selector": 0.01,
+    "max_eth_starkgate_selector": 0.015,
     "bridge_layerswap_checkbox": false,
     "bridge_layerswap_network": 0,
-    "min_eth_layerswap_selector": 0.003,
-    "max_eth_layerswap_selector": 0.005,
-    "back_bridge_layerswap_checkbox": true,
+    "min_eth_layerswap_selector": 0.01,
+    "max_eth_layerswap_selector": 0.015,
+    "back_bridge_layerswap_checkbox": false,
     "back_bridge_layerswap_network": 0,
     "min_percent_layerswap_selector": 100,
     "max_percent_layerswap_selector": 100,
@@ -80,10 +86,10 @@
     "swap_jediswap_checkbox": false,
     "random_swap_checkbox": false,
     "backswaps_checkbox": false,
-    "backswaps_count_spinbox": 1,
+    "backswaps_count_spinbox": 5,
     "backswaps_usd_spinbox": 1.0,
     "wallet_delay_min_sec": 5,
-    "wallet_delay_max_sec": 7,
+    "wallet_delay_max_sec": 10,
     "project_delay_min_sec": 5,
     "project_delay_max_sec": 10,
     "shuffle_checkbox": true,
