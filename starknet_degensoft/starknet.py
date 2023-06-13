@@ -40,6 +40,7 @@ class Account(BaseAccount):
         # return False
 
 
+@add_sync_methods
 class ClientMixin:
     async def wait_for_pending_tx(
             self,
@@ -86,7 +87,7 @@ class ClientMixin:
 
 
 @add_sync_methods
-class FullNodeClient(ClientMixin, BaseFullNodeClient):
+class FullNodeClient(BaseFullNodeClient, ClientMixin):
     async def estimate_fee(
         self,
         tx: AccountTransaction,
@@ -114,5 +115,5 @@ class FullNodeClient(ClientMixin, BaseFullNodeClient):
 
 
 @add_sync_methods
-class GatewayClient(ClientMixin, BaseGatewayClient):
+class GatewayClient(BaseGatewayClient, ClientMixin):
     ...
