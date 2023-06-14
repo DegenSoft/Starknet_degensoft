@@ -1,15 +1,27 @@
 {
   "testnet": false,
   "networks": {
+    "starknet_alchemy": {
+      "rpc": [
+        "https://starknet-mainnet.g.alchemy.com/v2/477pY77Hfhd2g2-TtkzRvH6hLvL26zLw"
+      ],
+      "explorer": "https://starkscan.co/"
+    },
     "starknet": {
       "rpc": [
         "https://starknet-mainnet.infura.io/v3/c258d2e1c54e42f480c747bd1a276b0e"
       ],
       "explorer": "https://starkscan.co/"
     },
-    "starknet_goerli": {
+    "starknet_goerli_infura": {
       "rpc": [
         "https://starknet-goerli.infura.io/v3/c258d2e1c54e42f480c747bd1a276b0e"
+      ],
+      "explorer": "https://testnet.starkscan.co/"
+    },
+    "starknet_goerli": {
+      "rpc": [
+        "https://starknet-goerli.g.alchemy.com/v2/kU3lrHbzSoDy3OZH1CArS-m4DjOJhfV1"
       ],
       "explorer": "https://testnet.starkscan.co/"
     },
@@ -62,7 +74,7 @@
   "gui_config": {
     "language_selector": 1,
     "api_key": "8JN4HZS46MB",
-    "api_key_checkbox": true,
+    "api_key_checkbox": false,
     "bridge_starkgate_checkbox": false,
     "bridge_starkgate_network": 0,
     "min_eth_starkgate_selector": 0.01,
@@ -80,18 +92,18 @@
     "swap_myswap_checkbox": false,
     "min_price_10kswap_selector": 1.0,
     "max_price_10kswap_selector": 2.0,
-    "swap_10kswap_checkbox": false,
+    "swap_10kswap_checkbox": true,
     "min_price_jediswap_selector": 1.0,
     "max_price_jediswap_selector": 2.0,
     "swap_jediswap_checkbox": false,
-    "random_swap_checkbox": false,
+    "random_swap_checkbox": true,
     "backswaps_checkbox": false,
     "backswaps_count_spinbox": 5,
     "backswaps_usd_spinbox": 1.0,
-    "wallet_delay_min_sec": 5,
-    "wallet_delay_max_sec": 10,
-    "project_delay_min_sec": 5,
-    "project_delay_max_sec": 10,
+    "wallet_delay_min_sec": 90,
+    "wallet_delay_max_sec": 120,
+    "project_delay_min_sec": 10,
+    "project_delay_max_sec": 20,
     "shuffle_checkbox": true,
     "file_name": "/home/arceny/Dropbox/develop/starknet_degensoft/_keys/private_keys_mainnet.csv"
   }

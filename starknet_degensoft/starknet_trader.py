@@ -19,7 +19,6 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
-from starknet_degensoft.trader import BaseTrader
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
@@ -80,7 +79,7 @@ def get_price(symbol: str):
     return float(json_data['price'])
 
 
-class StarknetTrader(BaseTrader):
+class StarknetTrader:
     def __init__(self, config: Config, testnet=False):
         self.config = config
         self.paused = False
@@ -129,14 +128,18 @@ class StarknetTrader(BaseTrader):
 
     def stop(self):
         self.stopped = True
+        self.starknet_client.is_stopped = True
 
     def process_pause(self, sec=None):
-        for i in range(sec) if sec else 1:
-            time.sleep(1)
-            # if not self.paused:
-            #     break
-            if self.stopped:
-                break
+        if sec:
+            for i in range(sec):
+                time.sleep(1)
+                if self.stopped:
+                    break
+        else:
+            while True:
+                if self.stopped or not self.paused:
+                    break
 
     def get_tx_url(self, tx_hash):
         if self.testnet:
@@ -227,9 +230,11 @@ class StarknetTrader(BaseTrader):
                                                 amount_percent=random_percent,
                                                 wait_for_tx=wait_for_tx)
                 if j < len(projects):
-                    self.random_delay(project_delay)
+                    self.process_pause(random.randint(*project_delay))
+                    # self.random_delay(project_delay)
             if i < len(self.accounts):
-                self.random_delay(wallet_delay)
+                # self.random_delay(wallet_delay)
+                self.process_pause(random.randint(*wallet_delay))
 
     def get_account(self, address, private_key) -> StarknetAccount:
         try:
@@ -243,7 +248,7 @@ class StarknetTrader(BaseTrader):
             key_pair=key_par,
             chain=StarknetChainId.TESTNET if self.testnet else StarknetChainId.MAINNET
         )
-        account.ESTIMATED_FEE_MULTIPLIER = 1.0
+        account.ESTIMATED_FEE_MULTIPLIER = 1.25
         return account
 
     def setup_account(self, account: StarknetAccount):
@@ -336,10 +341,9 @@ class StarknetTrader(BaseTrader):
                                  to_l2_address=to_l2_address, to_network=destination_network)
         self.logger.info(self.get_tx_url(tx_hash))
         self.logger.debug(get_explorer_address_url(to_l2_address, explorer_url))
-        if wait_for_tx:
-            if wait_for_tx:
-                self.logger.debug('Waiting for tx confirmation...')
-                self.starknet_client.wait_for_pending_tx_sync(int(tx_hash, base=16), check_interval=5)
+        if wait_for_tx and not self.stopped:
+            self.logger.debug('Waiting for tx confirmation...')
+            self.starknet_client.wait_for_pending_tx_sync(int(tx_hash, base=16), check_interval=5)
         return tx_hash
 
     @action_decorator('bridge')
@@ -362,7 +366,7 @@ class StarknetTrader(BaseTrader):
         res = s.swap(amount=amount, token_a_address=token_a_address, token_b_address=token_b_address,
                      slippage=self.config.slippage)
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
-        if wait_for_tx:
+        if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
             self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5, wait_for_accept=False)
         return hex(res.transaction_hash)

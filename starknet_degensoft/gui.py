@@ -1,6 +1,7 @@
 import logging
 import random
 import sys
+import time
 
 from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -275,6 +276,7 @@ class MainWindow(QMainWindow):
         handler.setFormatter(log_formatter)
         startnet_logger.addHandler(handler)
         self.logger_signal.connect(self._log)
+        self.worker_thread = None
 
         for lang in ('ru', 'en'):
             for bridge_name in self.bridges:
@@ -636,7 +638,7 @@ class MainWindow(QMainWindow):
 
     def on_start_clicked(self):
         conf = self.get_config(check_enabled_widget=True)
-        self.logger.info('Start button clicked')
+        self.logger.info('START button clicked')
         if not conf['api_key']:
             self.show_error_message(self.messages[self.language]['apikey_error'])
             return
@@ -674,7 +676,9 @@ class MainWindow(QMainWindow):
             if conf[f'{key}_min_sec'] != 0 and conf[f'{key}_min_sec'] > conf[f'{key}_max_sec']:
                 self.show_error_message(self.messages[self.language]['minmax_delay_error'])
                 return
-        # return
+        if self.worker_thread is not None and self.worker_thread.isRunning():
+            self.logger.error('Worker is already running.. please wait')
+            return
         self.widgets_tr['start_button'].setDisabled(True)
         self.widgets_tr['pause_button'].setDisabled(False)
         self.widgets_tr['stop_button'].setDisabled(False)
@@ -688,22 +692,25 @@ class MainWindow(QMainWindow):
         self.widgets_tr['start_button'].setDisabled(False)
         self.widgets_tr['pause_button'].setDisabled(True)
         self.widgets_tr['stop_button'].setDisabled(True)
-        self.logger.info('Task completed')
+        self.logger.info('Task completed!')
 
     def on_pause_clicked(self):
         if not self.worker_thread.paused:
-            self.logger.info('Pause button clicked')
+            self.logger.info('PAUSE button clicked')
             self.worker_thread.pause()
         else:
-            self.logger.info('Continue button clicked')
+            self.logger.info('CONTINUE button clicked')
             self.worker_thread.resume()
 
     def on_stop_clicked(self):
+        self.logger.info('STOP button clicked')
+        self.worker_thread.stop()
+        self.logger.info('Waiting for worker will be finished...')
+        while self.worker_thread.isRunning():
+            time.sleep(0.1)
         self.widgets_tr['start_button'].setDisabled(False)
         self.widgets_tr['pause_button'].setDisabled(True)
         self.widgets_tr['stop_button'].setDisabled(True)
-        self.logger.info('Stop button clicked')
-        self.worker_thread.stop()
 
     def on_hide_checkbox_changed(self):
         echo_mode = QLineEdit.Password if self.sender().isChecked() else QLineEdit.Normal

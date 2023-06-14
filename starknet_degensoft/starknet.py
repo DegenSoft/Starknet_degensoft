@@ -1,7 +1,7 @@
 import asyncio
 from typing import List, Optional, Tuple, Union, cast
 
-from marshmallow import EXCLUDE
+from marshmallow import EXCLUDE, ValidationError
 from starknet_py.hash.selector import get_selector_from_name
 from starknet_py.net.account.account import Account as BaseAccount
 from starknet_py.net.client_errors import ClientError
@@ -14,6 +14,8 @@ from starknet_py.net.models.transaction import AccountTransaction
 from starknet_py.net.schemas.rpc import EstimatedFeeSchema
 from starknet_py.transaction_errors import TransactionFailedError, TransactionNotReceivedError, TransactionRejectedError
 from starknet_py.utils.sync import add_sync_methods
+
+is_stopped = False
 
 
 @add_sync_methods
@@ -42,6 +44,9 @@ class Account(BaseAccount):
 
 @add_sync_methods
 class ClientMixin:
+
+    is_stopped = False
+
     async def wait_for_pending_tx(
             self,
             tx_hash: Hash,
@@ -53,8 +58,30 @@ class ClientMixin:
 
         first_run = True
         try:
+            # ugly code for JSON RPC nodes
             while True:
-                result = await self.get_transaction_receipt(tx_hash=tx_hash)
+                if self.is_stopped:
+                    return None, TransactionStatus.NOT_RECEIVED
+                _attempt = 0
+                while True:
+                    if self.is_stopped:
+                        return None, TransactionStatus.NOT_RECEIVED
+                    try:
+                        _attempt += 1
+                        result = await self.get_transaction_receipt(tx_hash=tx_hash)
+                        break
+                    except ClientError as ex:
+                        if ex.code == 25:# and _attempt <= 100:
+                            print(f'attempt {_attempt} failed. try again in {check_interval} sec.')
+                            await asyncio.sleep(check_interval)
+                            continue
+                        else:
+                            raise ex
+                    except ValidationError as ex:
+                        return None, TransactionStatus.PENDING
+                        # print(f'ValidationError, try again: {ex}')
+                        # await asyncio.sleep(check_interval)
+                        # continue
                 status = result.status
 
                 if status in (
@@ -87,12 +114,12 @@ class ClientMixin:
 
 
 @add_sync_methods
-class FullNodeClient(BaseFullNodeClient, ClientMixin):
+class FullNodeClient(ClientMixin, BaseFullNodeClient):
     async def estimate_fee(
-        self,
-        tx: AccountTransaction,
-        block_hash: Optional[Union[Hash, Tag]] = None,
-        block_number: Optional[Union[int, Tag]] = None,
+            self,
+            tx: AccountTransaction,
+            block_hash: Optional[Union[Hash, Tag]] = None,
+            block_number: Optional[Union[int, Tag]] = None,
     ) -> Union[EstimatedFee, List[EstimatedFee]]:
         block_identifier = get_block_identifier(
             block_hash=block_hash, block_number=block_number
@@ -115,5 +142,5 @@ class FullNodeClient(BaseFullNodeClient, ClientMixin):
 
 
 @add_sync_methods
-class GatewayClient(BaseGatewayClient, ClientMixin):
+class GatewayClient(ClientMixin, BaseGatewayClient):
     ...
