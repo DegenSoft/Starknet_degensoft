@@ -72,7 +72,7 @@ class ClientMixin:
                         break
                     except ClientError as ex:
                         if ex.code == 25:# and _attempt <= 100:
-                            print(f'attempt {_attempt} failed. try again in {check_interval} sec.')
+                            # print(f'attempt {_attempt} failed. try again in {check_interval} sec.')
                             await asyncio.sleep(check_interval)
                             continue
                         else:

@@ -1,17 +1,29 @@
 {
   "testnet": false,
   "networks": {
+    "starknet": {
+      "rpc": [
+        "https://alpha-mainnet.starknet.io"
+      ],
+      "explorer": "https://starkscan.co/"
+    },
     "starknet_alchemy": {
       "rpc": [
         "https://starknet-mainnet.g.alchemy.com/v2/477pY77Hfhd2g2-TtkzRvH6hLvL26zLw"
       ],
       "explorer": "https://starkscan.co/"
     },
-    "starknet": {
+    "starknet_infura": {
       "rpc": [
         "https://starknet-mainnet.infura.io/v3/c258d2e1c54e42f480c747bd1a276b0e"
       ],
       "explorer": "https://starkscan.co/"
+    },
+    "starknet_goerli": {
+      "rpc": [
+        "https://alpha4.starknet.io"
+      ],
+      "explorer": "https://testnet.starkscan.co/"
     },
     "starknet_goerli_infura": {
       "rpc": [
@@ -19,7 +31,7 @@
       ],
       "explorer": "https://testnet.starkscan.co/"
     },
-    "starknet_goerli": {
+    "starknet_goerli_alchemy": {
       "rpc": [
         "https://starknet-goerli.g.alchemy.com/v2/kU3lrHbzSoDy3OZH1CArS-m4DjOJhfV1"
       ],
@@ -89,14 +101,14 @@
     "max_percent_layerswap_selector": 100,
     "min_price_myswap_selector": 1.0,
     "max_price_myswap_selector": 2.0,
-    "swap_myswap_checkbox": false,
+    "swap_myswap_checkbox": true,
     "min_price_10kswap_selector": 1.0,
     "max_price_10kswap_selector": 2.0,
     "swap_10kswap_checkbox": true,
     "min_price_jediswap_selector": 1.0,
     "max_price_jediswap_selector": 2.0,
-    "swap_jediswap_checkbox": false,
-    "random_swap_checkbox": true,
+    "swap_jediswap_checkbox": true,
+    "random_swap_checkbox": false,
     "backswaps_checkbox": false,
     "backswaps_count_spinbox": 5,
     "backswaps_usd_spinbox": 1.0,
