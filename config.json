@@ -7,33 +7,9 @@
       ],
       "explorer": "https://starkscan.co/"
     },
-    "starknet_alchemy": {
-      "rpc": [
-        "https://starknet-mainnet.g.alchemy.com/v2/477pY77Hfhd2g2-TtkzRvH6hLvL26zLw"
-      ],
-      "explorer": "https://starkscan.co/"
-    },
-    "starknet_infura": {
-      "rpc": [
-        "https://starknet-mainnet.infura.io/v3/c258d2e1c54e42f480c747bd1a276b0e"
-      ],
-      "explorer": "https://starkscan.co/"
-    },
     "starknet_goerli": {
       "rpc": [
         "https://alpha4.starknet.io"
-      ],
-      "explorer": "https://testnet.starkscan.co/"
-    },
-    "starknet_goerli_infura": {
-      "rpc": [
-        "https://starknet-goerli.infura.io/v3/c258d2e1c54e42f480c747bd1a276b0e"
-      ],
-      "explorer": "https://testnet.starkscan.co/"
-    },
-    "starknet_goerli_alchemy": {
-      "rpc": [
-        "https://starknet-goerli.g.alchemy.com/v2/kU3lrHbzSoDy3OZH1CArS-m4DjOJhfV1"
       ],
       "explorer": "https://testnet.starkscan.co/"
     },
@@ -84,8 +60,8 @@
   },
   "slippage": 2,
   "gui_config": {
-    "language_selector": 1,
-    "api_key": "8JN4HZS46MB",
+    "language_selector": 0,
+    "api_key": "",
     "api_key_checkbox": false,
     "bridge_starkgate_checkbox": false,
     "bridge_starkgate_network": 0,
@@ -97,8 +73,8 @@
     "max_eth_layerswap_selector": 0.003,
     "back_bridge_layerswap_checkbox": false,
     "back_bridge_layerswap_network": 0,
-    "min_percent_layerswap_selector": 100,
-    "max_percent_layerswap_selector": 100,
+    "min_percent_layerswap_selector": 30,
+    "max_percent_layerswap_selector": 30,
     "min_price_myswap_selector": 1.0,
     "max_price_myswap_selector": 2.0,
     "swap_myswap_checkbox": false,
@@ -116,7 +92,7 @@
     "wallet_delay_max_sec": 120,
     "project_delay_min_sec": 10,
     "project_delay_max_sec": 20,
-    "shuffle_checkbox": true,
-    "file_name": "/home/arceny/Dropbox/develop/starknet_degensoft/_keys/private_keys_mainnet.csv"
+    "shuffle_checkbox": false,
+    "file_name": ""
   }
 }

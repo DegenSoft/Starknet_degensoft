@@ -311,7 +311,7 @@ class StarknetTrader:
                       token_b_address=self.starknet_eth_contract,
                       wait_for_tx=wait_for_tx)
 
-    # @action_decorator('bridge')
+    @action_decorator('bridge')
     def deposit_layerswap(self, source_network, ethereum_private_key, starknet_account, amount):
         if self.testnet:
             network_config = self.config.data['networks']['ethereum_goerli']
@@ -330,11 +330,13 @@ class StarknetTrader:
         ethereum_account = EthereumAccount.from_key(ethereum_private_key)
         to_l2_address = ethereum_account.address
         explorer_url = self.config.data['networks'][destination_network.lower().replace(' ', '_')]['explorer']
-        deposit_data = bridge.get_deposit_data(starknet_account, destination_network)
-        if not deposit_data:
-            raise ValueError('some error in Layerswap bridge call')
-        min_amount = Web3.to_wei(deposit_data['MinAmount'], 'ether')
-        max_amount = Web3.to_wei(deposit_data['MaxAmount'], 'ether')
+        from_netwrok = 'STARKNET_MAINNET' if not self.config.testnet else 'STARKNET_GOERLI'
+        to_network = LayerswapBridge.NETWORK_TO_LS_NAME.get(destination_network, destination_network)
+        deposit_data = bridge.get_deposit_amount_limits(from_network=from_netwrok, to_network=to_network)
+        # if not deposit_data:
+        #     raise ValueError('some error in Layerswap bridge call')
+        min_amount = Web3.to_wei(deposit_data['min_amount'], 'ether')
+        max_amount = Web3.to_wei(deposit_data['max_amount'], 'ether')
         # fee_amount = Web3.to_wei(deposit_data['FeeAmount'], 'ether')
         balance = starknet_account.get_balance_sync()
         fee = bridge.get_starknet_transfer_fee(starknet_account, to_l2_address)
@@ -346,7 +348,7 @@ class StarknetTrader:
         elif transfer_amount > max_amount:
             raise ValueError(f'Calculated amount greater then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &gt; {Web3.from_wei(max_amount, "ether"):.4f}')
         self.logger.debug(f'Amount is {Web3.from_wei(transfer_amount, "ether"):.4f} ETH')
-        print(type(Web3.from_wei(transfer_amount, 'ether')))
+        # print(type(Web3.from_wei(transfer_amount, 'ether')))
         tx_hash = bridge.deposit(account=starknet_account, amount=Web3.from_wei(transfer_amount, 'ether'),
                                  to_l2_address=to_l2_address, to_network=destination_network)
         self.logger.info(self.get_tx_url(tx_hash))
