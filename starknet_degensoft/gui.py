@@ -178,7 +178,7 @@ class MainWindow(QMainWindow):
 
     messages = {
         'en': {
-            'window_title': "StarkNet DegenSoft",
+            'window_title': "Starknet [DEGENSOFT]",
             'language_label': "Language",
             'api_key_label': "API Key (you can get it via <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
             'api_key_checkbox': "hide",
@@ -219,7 +219,7 @@ class MainWindow(QMainWindow):
             'minmax_delay_error': 'Minimum delay must be less or equal maximum delay',
         },
         'ru': {
-            'window_title': "StarkNet Дегенсофт",
+            'window_title': "Starknet [DEGENSOFT]",
             'language_label': "Язык",
             'api_key_label': "API ключ (вы можете получить его через <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
             'api_key_checkbox': "скрыть",
