@@ -2,6 +2,7 @@
 import logging
 import time
 from decimal import Decimal
+from pprint import pp
 from typing import Union
 
 import requests
@@ -51,26 +52,29 @@ class LayerswapBridge:
             raise RuntimeError('could not get layerswap access token')
         return {'authorization': 'Bearer ' + r.json()['access_token']}
 
-    def _get_swap_response(self, amount, from_network, to_network, to_address, auth_header):
+    def _get_swap_response(self, amount, from_network, to_network, from_address, to_address, auth_header):
         headers = {}
         headers.update(auth_header)
 
         json_data = {
             'amount': str(amount),
-            'source_exchange': None,
-            'source_network': from_network,
-            'destination_network': to_network,
-            'destination_exchange': None,
             'asset': 'ETH',
-            'destination_address': to_address,
+            # 'source_exchange': None,
+            # 'source_network': from_network,
+            'source': from_network,
+            'source_address': from_address,
+            # 'destination_network': to_network,
             'refuel': False,
+            'destination': to_network,
+            # 'destination_exchange': None,
+            'destination_address': to_address,
         }
-        # print(json_data)
+        pp(json_data)
         r = requests.post(f'{self.BRIDGE_API_URL}/api/swaps', headers=headers, json=json_data)
         return r
 
-    def _api_swap(self, amount, from_network, to_network, to_address, auth_header):
-        r = self._get_swap_response(amount, from_network, to_network, to_address, auth_header)
+    def _api_swap(self, amount, from_network, to_network, from_address, to_address, auth_header):
+        r = self._get_swap_response(amount, from_network, to_network, from_address, to_address, auth_header)
         if r.status_code != 200:
             raise RuntimeError(r.json())
         swap_id = r.json()['data']['swap_id']
@@ -82,11 +86,12 @@ class LayerswapBridge:
             raise RuntimeError(r.json())
         return r.json()
 
-    def _get_deposit_address(self, swap_id, auth_header, is_starknet):
+    def _get_deposit_address(self, swap_id, auth_header, is_starknet):  # todo
         swap_data = self._get_swap_status(swap_id, auth_header)
         from_network = swap_data['data']['source_network']
         rd = requests.get(f'{self.BRIDGE_API_URL}/api/deposit_addresses/{from_network}',
-                          params={'source': 1 if is_starknet else 0}, headers=auth_header)
+                          params={'source': 1}, headers=auth_header)
+                          # params={'source': 1 if is_starknet else 0}, headers=auth_header)
         rd_data = rd.json()
         if rd_data['error']:
             raise RuntimeError(rd_data)
@@ -95,8 +100,10 @@ class LayerswapBridge:
     def get_deposit_data(self, account: Union[Account, StarknetAccount], to_network):
         if type(account) == Account:
             chain_id = account.web3.eth.chain_id
+            from_address = account.address
         else:
             chain_id = str(account._chain_id)
+            from_address = hex(account.address)
         try:
             from_network = self.CHAIN_ID_TO_SOURCE_NETWORK[chain_id]
         except KeyError:
@@ -104,10 +111,8 @@ class LayerswapBridge:
         auth_header = self._get_authorization_header()
         to_network = self.NETWORK_TO_LS_NAME.get(to_network, to_network)
         # hack to get min_amount, max_amount and fee_amount
-        # print(to_network)
         r = self._get_swap_response(from_network=from_network, to_network=to_network, amount=0.000000001,
-                                    to_address='0x0', auth_header=auth_header)
-        # print(r.json())
+                                    from_address=from_address, to_address='0x0', auth_header=auth_header)
         json_data = r.json()
         if 'error' in json_data:
             return r.json()['error']['metadata']
@@ -126,10 +131,12 @@ class LayerswapBridge:
             chain_id = account.web3.eth.chain_id
             balance = account.balance
             is_starknet = False
+            from_address = account.address
         else:
             chain_id = str(account._chain_id)
             balance = account.get_balance_sync()
             is_starknet = True
+            from_address = hex(account.address)
         try:
             from_network = self.CHAIN_ID_TO_SOURCE_NETWORK[chain_id]
         except KeyError:
@@ -140,7 +147,7 @@ class LayerswapBridge:
         else:
             to_network = self.NETWORK_TO_LS_NAME.get(to_network, to_network)
         deposit_data = self.get_deposit_data(account, to_network)
-        # print(deposit_data, amount)
+        # pp(deposit_data)
         if amount < deposit_data['MinAmount']:
             raise ValueError(f'amount must be greater then {deposit_data["MinAmount"]} ETH')
         elif amount > deposit_data['MaxAmount']:
@@ -150,9 +157,13 @@ class LayerswapBridge:
         auth_header = self._get_authorization_header()
 
         swap_id = self._api_swap(from_network=from_network, to_network=to_network, amount=amount,
-                                 to_address=to_l2_address, auth_header=auth_header)
+                                 from_address=from_address, to_address=to_l2_address, auth_header=auth_header)
         self.logger.debug(f'https://{"testnet." if self.testnet else ""}layerswap.io/swap/{swap_id}')
+        # swap_status = self._get_swap_status(swap_id=swap_id, auth_header=auth_header)
+        # pp(swap_status)
         deposit_address = self._get_deposit_address(swap_id, auth_header=auth_header, is_starknet=is_starknet)
+        # pp(deposit_address)
+        # return
         if type(account) == Account:
             tx_hash = account.transfer(to_address=deposit_address, amount=Web3.to_wei(amount, 'ether'))
             if wait_for_tx:

@@ -2,6 +2,7 @@ import logging
 import random
 import sys
 import time
+import os
 
 from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
 from PyQt5.QtCore import QThread, pyqtSignal
@@ -138,7 +139,7 @@ class MyQTextEdit(QTextEdit):
 
 
 class MainWindow(QMainWindow):
-    CONFIG_NAME = 'config.json'
+    CONFIG_FILENAME = os.environ.get('CONFIG_FILENAME', 'config.json')
     SLAVIK_API_SECRET = ''
 
     file_name = None
@@ -294,7 +295,7 @@ class MainWindow(QMainWindow):
         self.trader = StarknetTrader(config=self.config, testnet=self.config.testnet)
 
     def load_config(self):
-        self.config.load(self.CONFIG_NAME)
+        self.config.load(self.CONFIG_FILENAME)
         for key in self.config.data['gui_config']:
             value = self.config.data['gui_config'][key]
             if key not in self.widgets_config:
@@ -739,7 +740,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self.config.gui_config = self.get_config()
-        self.config.save(self.CONFIG_NAME)
+        self.config.save(self.CONFIG_FILENAME)
 
     def handle_links(self, url):
         QDesktopServices.openUrl(url)
@@ -747,7 +748,7 @@ class MainWindow(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    app.setStyle(QStyleFactory.create('Windows'))
+    # app.setStyle(QStyleFactory.create('Windows'))
     main_window = MainWindow()
     main_window.setMinimumSize(600, 700)
     frame_geometry = main_window.frameGeometry()

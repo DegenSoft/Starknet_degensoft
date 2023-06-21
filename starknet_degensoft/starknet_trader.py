@@ -46,9 +46,9 @@ def action_decorator(action):
                                 try:
                                     return func(self, *args, **kwargs)
                                 except ClientError as ex:
-                                    if 'StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED' in ex.message and attempt <= 3:
-                                        random_delay = random.randint(30, 60)
-                                        self.logger.debug(f'Starknet RPC Error: StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED. Retry in {random_delay} sec.')
+                                    if 'StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED' in ex.message and attempt <= 5:
+                                        random_delay = random.randint(50, 90)
+                                        self.logger.error(f'Starknet RPC Error: StarknetErrorCode.TRANSACTION_LIMIT_EXCEEDED. Retry in {random_delay} sec.')
                                         self.process_pause(random_delay)
                                     else:
                                         raise ex
@@ -171,7 +171,17 @@ class StarknetTrader:
             # self.logger.debug(self.get_address_url(starknet_address))
             # nonce = account.starknet_account.get_nonce_sync()
             # self.logger.debug(f'nonce={nonce}')
-            is_deployed = account.starknet_account.is_deployed_sync()
+            for kkk in range(3):
+                try:
+                    is_deployed = account.starknet_account.is_deployed_sync()
+                    break
+                except Exception as ex:
+                    is_deployed = None
+                    self.logger.error(ex)
+                    self.logger.info('retry')
+            if is_deployed is None:
+                self.logger.error('could not get account deploy status, probably RPC error')
+                continue
             for j, project in enumerate(projects, 1):
                 if self.paused:
                     self.process_pause()
@@ -301,7 +311,7 @@ class StarknetTrader:
                       token_b_address=self.starknet_eth_contract,
                       wait_for_tx=wait_for_tx)
 
-    @action_decorator('bridge')
+    # @action_decorator('bridge')
     def deposit_layerswap(self, source_network, ethereum_private_key, starknet_account, amount):
         if self.testnet:
             network_config = self.config.data['networks']['ethereum_goerli']
