@@ -153,7 +153,13 @@ class StarknetTrader:
         else:
             return f'https://starkscan.co/contract/{address}'
 
-    def run(self, projects, wallet_delay=(0, 0), project_delay=(0, 0), shuffle=False, api: DegenSoftApiClient = None):
+    def run(self,
+            projects: list,
+            wallet_delay: tuple = (0, 0),
+            project_delay: tuple = (0, 0),
+            shuffle: bool = False,
+            random_swap_project: bool = False,
+            api: DegenSoftApiClient = None):
         self.paused = False
         self.stopped = False
         self._api = api
@@ -182,7 +188,24 @@ class StarknetTrader:
             if is_deployed is None:
                 self.logger.error('could not get account deploy status, probably RPC error')
                 continue
-            for j, project in enumerate(projects, 1):
+            if random_swap_project:
+                # choosing random SWAP project
+                uniq_projects = []
+                swap_projects = []
+                for project in projects:
+                    if not (project['cls'] and issubclass(project['cls'], BaseSwap)):
+                        if swap_projects:
+                            random.shuffle(swap_projects)
+                            if random_swap_project:
+                                swap_projects = swap_projects[:1]
+                            uniq_projects += swap_projects
+                            swap_projects = []
+                        uniq_projects.append(project)
+                    else:
+                        swap_projects.append(project)
+            else:
+                uniq_projects = projects
+            for j, project in enumerate(uniq_projects, 1):
                 if self.paused:
                     self.process_pause()
                 if self.stopped:
