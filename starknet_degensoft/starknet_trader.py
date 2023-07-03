@@ -188,23 +188,20 @@ class StarknetTrader:
             if is_deployed is None:
                 self.logger.error('could not get account deploy status, probably RPC error')
                 continue
-            if random_swap_project:
-                # choosing random SWAP project
-                uniq_projects = []
-                swap_projects = []
-                for project in projects:
-                    if not (project['cls'] and issubclass(project['cls'], BaseSwap)):
-                        if swap_projects:
-                            random.shuffle(swap_projects)
-                            if random_swap_project:
-                                swap_projects = swap_projects[:1]
-                            uniq_projects += swap_projects
-                            swap_projects = []
-                        uniq_projects.append(project)
-                    else:
-                        swap_projects.append(project)
-            else:
-                uniq_projects = projects
+            # choosing random SWAP project and uniq order
+            uniq_projects = []
+            swap_projects = []
+            for project in projects:
+                if not (project['cls'] and issubclass(project['cls'], BaseSwap)):
+                    if swap_projects:
+                        random.shuffle(swap_projects)
+                        if random_swap_project:
+                            swap_projects = swap_projects[:1]
+                        uniq_projects += swap_projects
+                        swap_projects = []
+                    uniq_projects.append(project)
+                else:
+                    swap_projects.append(project)
             for j, project in enumerate(uniq_projects, 1):
                 if self.paused:
                     self.process_pause()
