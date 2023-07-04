@@ -318,6 +318,8 @@ class StarknetTrader:
             if cnt >= count:
                 break
         random.shuffle(tokens_to_swap)
+        if not tokens_to_swap:
+            self.logger.info('No token balance to swap')
         for i, token_to_swap in enumerate(tokens_to_swap, 1):
             if self.paused:
                 self.process_pause()
@@ -327,7 +329,7 @@ class StarknetTrader:
             balance_from_native = token_to_swap["token"].from_native(token_to_swap["balance"])
             self.logger.info(f'Swap {token_to_swap["cls"].swap_name}: {balance_from_native:.4f} '
                              f'{token_to_swap["symbol"]} ({token_to_swap["balance_usd"]:.4f} USD) -> ETH')
-            # self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
+            self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
             self.swap(swap_cls=token_to_swap["cls"],
                       account=starknet_account,
                       amount=token_to_swap["balance"],
@@ -404,5 +406,5 @@ class StarknetTrader:
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
-            self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5, wait_for_accept=False)
+            self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5)
         return hex(res.transaction_hash)
