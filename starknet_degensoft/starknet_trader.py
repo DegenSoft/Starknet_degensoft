@@ -132,6 +132,7 @@ class StarknetTrader:
 
     def process_pause(self, sec=None):
         if sec:
+            self.logger.debug(f'delay for {sec} sec.')
             for i in range(sec):
                 time.sleep(1)
                 if self.stopped:
@@ -191,17 +192,18 @@ class StarknetTrader:
             # choosing random SWAP project and uniq order
             uniq_projects = []
             swap_projects = []
-            for project in projects:
-                if not (project['cls'] and issubclass(project['cls'], BaseSwap)):
-                    if swap_projects:
-                        random.shuffle(swap_projects)
-                        if random_swap_project:
-                            swap_projects = swap_projects[:1]
-                        uniq_projects += swap_projects
-                        swap_projects = []
-                    uniq_projects.append(project)
-                else:
+            for k, project in enumerate(projects, 1):
+                is_swap_project = project['cls'] and issubclass(project['cls'], BaseSwap)
+                if is_swap_project:
                     swap_projects.append(project)
+                if swap_projects and (not is_swap_project or k == len(projects)):
+                    random.shuffle(swap_projects)
+                    if random_swap_project:
+                        swap_projects = swap_projects[:1]
+                    uniq_projects += swap_projects
+                    swap_projects = []
+                if not is_swap_project:
+                    uniq_projects.append(project)
             for j, project in enumerate(uniq_projects, 1):
                 if self.paused:
                     self.process_pause()
