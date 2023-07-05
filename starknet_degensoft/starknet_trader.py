@@ -172,22 +172,20 @@ class StarknetTrader:
                 self.process_pause()
             if self.stopped:
                 break
-            balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
             starknet_address = hex(account.starknet_account.address)
-            self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} ({balance:.4f} ETH)')
-            # self.logger.debug(self.get_address_url(starknet_address))
-            # nonce = account.starknet_account.get_nonce_sync()
-            # self.logger.debug(f'nonce={nonce}')
-            for kkk in range(3):
+            for attempt_ in range(3):
                 try:
+                    balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
                     is_deployed = account.starknet_account.is_deployed_sync()
+                    self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} ({balance:.4f} ETH)')
                     break
                 except Exception as ex:
                     is_deployed = None
                     self.logger.error(ex)
                     self.logger.info('retry')
             if is_deployed is None:
-                self.logger.error('could not get account deploy status, probably RPC error')
+                self.logger.info(f'Starknet Account {hex(account.starknet_account.address)}')
+                self.logger.error('could not get account balance and deploy status, probably RPC error')
                 continue
             # choosing random SWAP project and uniq order
             uniq_projects = []
