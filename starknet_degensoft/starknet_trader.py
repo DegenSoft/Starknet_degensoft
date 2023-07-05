@@ -132,6 +132,7 @@ class StarknetTrader:
 
     def process_pause(self, sec=None):
         if sec:
+            self.logger.debug(f'delay for {sec} sec.')
             for i in range(sec):
                 time.sleep(1)
                 if self.stopped:
@@ -153,7 +154,13 @@ class StarknetTrader:
         else:
             return f'https://starkscan.co/contract/{address}'
 
-    def run(self, projects, wallet_delay=(0, 0), project_delay=(0, 0), shuffle=False, api: DegenSoftApiClient = None):
+    def run(self,
+            projects: list,
+            wallet_delay: tuple = (0, 0),
+            project_delay: tuple = (0, 0),
+            shuffle: bool = False,
+            random_swap_project: bool = False,
+            api: DegenSoftApiClient = None):
         self.paused = False
         self.stopped = False
         self._api = api
@@ -182,7 +189,22 @@ class StarknetTrader:
             if is_deployed is None:
                 self.logger.error('could not get account deploy status, probably RPC error')
                 continue
-            for j, project in enumerate(projects, 1):
+            # choosing random SWAP project and uniq order
+            uniq_projects = []
+            swap_projects = []
+            for k, project in enumerate(projects, 1):
+                is_swap_project = project['cls'] and issubclass(project['cls'], BaseSwap)
+                if is_swap_project:
+                    swap_projects.append(project)
+                if swap_projects and (not is_swap_project or k == len(projects)):
+                    random.shuffle(swap_projects)
+                    if random_swap_project:
+                        swap_projects = swap_projects[:1]
+                    uniq_projects += swap_projects
+                    swap_projects = []
+                if not is_swap_project:
+                    uniq_projects.append(project)
+            for j, project in enumerate(uniq_projects, 1):
                 if self.paused:
                     self.process_pause()
                 if self.stopped:
@@ -191,11 +213,12 @@ class StarknetTrader:
                     self.logger.error('Account not deployed yet')
                     break
                 self._api_address = [account.starknet_address, starknet_address]
-                wait_for_tx = False if j == len(projects) else True
+                wait_for_tx = False if j == len(uniq_projects) else True
 
                 if project['cls'] is None:
-                    self.back_swap(starknet_account=account.starknet_account,
-                                   count=project['count'], min_amount_usd=project['amount_usd'])
+                    if not self.config.data.get('simulate'):
+                        self.back_swap(starknet_account=account.starknet_account,
+                                       count=project['count'], min_amount_usd=project['amount_usd'])
                 elif issubclass(project['cls'], BaseSwap):
                     eth_price = get_price('ETH')
                     random_amount = random_float(project['amount_usd'][0] / eth_price,
@@ -208,37 +231,38 @@ class StarknetTrader:
                     token_name = random.choice(token_names)
                     token_address = self.starknet_contracts[token_name]
                     self.logger.info(f'Swap {project["cls"].swap_name}: {random_amount:.4f} ETH -> {token_name}')
-                    # self.swap_eth(swap_cls=project['cls'], account=account.starknet_account,
-                    #               amount=random_amount, token_address=token_address,
-                    #               wait_for_tx=True if not is_last_project else False)
-                    self.swap(swap_cls=project['cls'], account=account.starknet_account,
-                              amount=Web3.to_wei(random_amount, 'ether'),
-                              token_a_address=self.starknet_eth_contract,
-                              token_b_address=token_address,
-                              wait_for_tx=wait_for_tx)
+                    if not self.config.data.get('simulate'):
+                        self.swap(swap_cls=project['cls'], account=account.starknet_account,
+                                  amount=Web3.to_wei(random_amount, 'ether'),
+                                  token_a_address=self.starknet_eth_contract,
+                                  token_b_address=token_address,
+                                  wait_for_tx=wait_for_tx)
                 elif (project['cls'] == StarkgateBridge) and account.private_key:
                     random_amount = random_float(*project['amount'])
                     self.logger.info(f'Bridge Stargate from {project["network"]} -> {random_amount} ETH')
-                    self.deposit_starkgate(ethereum_private_key=account.private_key,
-                                           starknet_account=account.starknet_account,
-                                           amount=random_amount)
+                    if not self.config.data.get('simulate'):
+                        self.deposit_starkgate(ethereum_private_key=account.private_key,
+                                               starknet_account=account.starknet_account,
+                                               amount=random_amount)
                 elif (project['cls'] == LayerswapBridge) and account.private_key:
                     if not project['is_back']:
                         random_amount = random_float(*project['amount'])
                         self.logger.info(f'Bridge Layerswap from {project["network"]} -> {random_amount} ETH')
-                        self.deposit_layerswap(source_network=project['network'],
-                                               ethereum_private_key=account.private_key,
-                                               starknet_account=account.starknet_account,
-                                               amount=random_amount)
+                        if not self.config.data.get('simulate'):
+                            self.deposit_layerswap(source_network=project['network'],
+                                                   ethereum_private_key=account.private_key,
+                                                   starknet_account=account.starknet_account,
+                                                   amount=random_amount)
                     else:
                         random_percent = random.randint(*project['amount_percent'])
                         self.logger.info(
                             f'Back bridge Layerswap to {project["network"]} -> {random_percent}% of balance')
-                        self.withdraw_layerswap(ethereum_private_key=account.private_key,
-                                                starknet_account=account.starknet_account,
-                                                destination_network=project['network'],
-                                                amount_percent=random_percent,
-                                                wait_for_tx=wait_for_tx)
+                        if not self.config.data.get('simulate'):
+                            self.withdraw_layerswap(ethereum_private_key=account.private_key,
+                                                    starknet_account=account.starknet_account,
+                                                    destination_network=project['network'],
+                                                    amount_percent=random_percent,
+                                                    wait_for_tx=wait_for_tx)
                 if j < len(projects):
                     self.process_pause(random.randint(*project_delay))
                     # self.random_delay(project_delay)
@@ -294,6 +318,8 @@ class StarknetTrader:
             if cnt >= count:
                 break
         random.shuffle(tokens_to_swap)
+        if not tokens_to_swap:
+            self.logger.info('No token balance to swap')
         for i, token_to_swap in enumerate(tokens_to_swap, 1):
             if self.paused:
                 self.process_pause()
@@ -303,7 +329,7 @@ class StarknetTrader:
             balance_from_native = token_to_swap["token"].from_native(token_to_swap["balance"])
             self.logger.info(f'Swap {token_to_swap["cls"].swap_name}: {balance_from_native:.4f} '
                              f'{token_to_swap["symbol"]} ({token_to_swap["balance_usd"]:.4f} USD) -> ETH')
-            # self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
+            self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
             self.swap(swap_cls=token_to_swap["cls"],
                       account=starknet_account,
                       amount=token_to_swap["balance"],
@@ -380,5 +406,5 @@ class StarknetTrader:
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
-            self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5, wait_for_accept=False)
+            self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5)
         return hex(res.transaction_hash)

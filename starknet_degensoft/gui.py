@@ -77,15 +77,11 @@ class TraderThread(QThread):
         wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
         swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
         projects = []
-        # print(self.config)
-        for key in random.sample(list(self.swaps), len(self.swaps)):
+        for key in self.swaps:
             if self.config[f'swap_{key}_checkbox']:
                 projects.append(dict(cls=self.swaps[key]['cls'],
                                      amount_usd=(self.config[f'min_price_{key}_selector'],
                                                  self.config[f'max_price_{key}_selector'])))
-        if self.config['random_swap_checkbox']:
-            random.shuffle(projects)
-            projects = projects[:1]
         for key in random.sample(list(self.bridges), len(self.bridges)):
             if self.config[f'bridge_{key}_checkbox']:
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
@@ -105,6 +101,7 @@ class TraderThread(QThread):
                                  amount_usd=self.config['backswaps_usd_spinbox']))
         self.trader.run(projects=projects, wallet_delay=wallet_delay,
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
+                        random_swap_project=self.config['random_swap_checkbox'],
                         api=self.api)
         self.task_completed.emit()
         # self.logger.removeHandler(self.handler)
