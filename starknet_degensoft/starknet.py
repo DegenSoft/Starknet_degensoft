@@ -52,7 +52,7 @@ class ClientMixin:
             tx_hash: Hash,
             wait_for_accept: Optional[bool] = False,
             check_interval=5,
-    ) -> Tuple[int, TransactionStatus]:
+    ) -> Tuple[Union[int, None], TransactionStatus]:
         if check_interval <= 0:
             raise ValueError("Argument check_interval has to be greater than 0.")
 
