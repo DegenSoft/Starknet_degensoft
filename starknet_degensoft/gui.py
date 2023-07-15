@@ -1,16 +1,17 @@
 import logging
+import os
 import random
 import sys
 import time
-import os
 
 from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
-from PyQt5.QtCore import QThread, pyqtSignal
+from PyQt5.QtCore import QThread, pyqtSignal, QMetaObject
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
-    QTextEdit, QStyleFactory, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
-    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser
+    QTextEdit, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
+    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox
 
+from degensoft.filereader import UniversalFileReader
 from starknet_degensoft.api_client2 import DegenSoftApiClient
 from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
@@ -135,6 +136,44 @@ class MyQTextEdit(QTextEdit):
         super().mouseReleaseEvent(e)
 
 
+class PasswordDialog(QDialog):
+    def __init__(self, *args, language, messages, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.language = language
+        self.messages = messages
+        self.setupUi(self)
+
+    def setupUi(self, Dialog):
+        Dialog.setObjectName("Dialog")
+        Dialog.resize(388, 95)
+        self.verticalLayout = QVBoxLayout(Dialog)
+        self.verticalLayout.setObjectName("verticalLayout")
+        self.label = QLabel(Dialog)
+        self.label.setObjectName("label")
+        self.verticalLayout.addWidget(self.label)
+        self.lineEdit = QLineEdit(Dialog)
+        self.lineEdit.setEchoMode(QLineEdit.Password)
+        self.lineEdit.setObjectName("lineEdit")
+        self.verticalLayout.addWidget(self.lineEdit)
+        self.buttonBox = QDialogButtonBox(Dialog)
+        self.buttonBox.setAutoFillBackground(False)
+        # self.buttonBox.setLocale(QtCore.QLocale(QtCore.QLocale.Russian, QtCore.QLocale.RussianFederation))
+        self.buttonBox.setOrientation(Qt.Horizontal)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Ok)
+        self.buttonBox.setObjectName("buttonBox")
+        self.verticalLayout.addWidget(self.buttonBox)
+
+        self.retranslateUi(Dialog)
+        self.buttonBox.accepted.connect(Dialog.accept)
+        self.buttonBox.rejected.connect(Dialog.reject)
+        QMetaObject.connectSlotsByName(Dialog)
+
+    def retranslateUi(self, Dialog):
+        # Dialog.setWindowTitle(_translate("Dialog", "Enter Password"))
+        Dialog.setWindowTitle(self.messages[self.language]['password_dialog_title'])
+        self.label.setText(self.messages[self.language]['password_dialog_message'])
+
+
 class MainWindow(QMainWindow):
     CONFIG_FILENAME = os.environ.get('CONFIG_FILENAME', 'config.json')
     SLAVIK_API_SECRET = ''
@@ -209,11 +248,14 @@ class MainWindow(QMainWindow):
             'apikey_error': 'You must set API key!',
             'api_error': 'Bad API key or API error: ',
             'file_error': 'You must select file with private keys!',
-            'csv_error': 'Failed to load private keys CSV file: ',
+            'csv_error': 'Failed to load wallets file: ',
             'minmax_eth_error': 'Minimum ETH amount must be non-zero and less then Maximum ETH amount',
             'minmax_percent_error': 'Minimum percent must be less then Maximum percent',
             'minmax_usd_error': 'Minimum USD$ amount must be non-zero and less then Maximum USD$ amount',
             'minmax_delay_error': 'Minimum delay must be less or equal maximum delay',
+            'decryption_error': 'Decryption error or wrong password',
+            'password_dialog_title': 'Enter Password',
+            'password_dialog_message': 'Enter password to decrypt wallets file:',
         },
         'ru': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -250,11 +292,14 @@ class MainWindow(QMainWindow):
             'apikey_error': 'Вы должны ввести API ключ!',
             'api_error': 'Неправильный ключ API или ошибка API: ',
             'file_error': 'Вы должны выбрать файл приватных ключей!',
-            'csv_error': 'Не удалось загрузить CSV файл приватных ключей: ',
+            'csv_error': 'Не удалось загрузить файл кошельков: ',
             'minmax_eth_error': 'Минимальная сумма ETH должна быть больше нуля и меньше Максимальной суммы ETH',
             'minmax_percent_error': 'Минимальный процент должен быть меньше максимального процента',
             'minmax_usd_error': 'Минимальная USD$ сумма должна быть больше нуля и меньше максимальной USD$ суммы',
             'minmax_delay_error': 'Минимальная задержка должна быть меньше или равна максимальной задержке',
+            'decryption_error': 'Ошибка расшифровки или неверный пароль',
+            'password_dialog_title': 'Введите Пароль',
+            'password_dialog_message': 'Введите пароль, что бы расшифровать файл кошельков:',
         }
     }
 
@@ -651,11 +696,6 @@ class MainWindow(QMainWindow):
         if not conf['file_name']:
             self.show_error_message(self.messages[self.language]['file_error'])
             return
-        try:
-            self.trader.load_private_keys_csv(conf['file_name'])
-        except Exception as ex:
-            self.show_error_message(self.messages[self.language]['csv_error'] + str(ex))
-            return
         for key in self.bridges:
             if conf[f'bridge_{key}_checkbox'] and not (
                     0 < conf[f'min_eth_{key}_selector'] <= conf[f'max_eth_{key}_selector']):
@@ -677,6 +717,22 @@ class MainWindow(QMainWindow):
         if self.worker_thread is not None and self.worker_thread.isRunning():
             self.logger.error('Worker is already running.. please wait')
             return
+        try:
+            filereader = UniversalFileReader(conf['file_name'])
+            filereader.load()
+            if filereader.is_encrypted():
+                dialog = PasswordDialog(language=self.language, messages=self.messages)
+                result = dialog.exec_()
+                if not (result and dialog.lineEdit.text()):
+                    self.logger.error('You must enter password')
+                    return
+                try:
+                    filereader.decrypt(dialog.lineEdit.text())
+                except Exception:
+                    return self.show_error_message(self.messages[self.language]['decryption_error'])
+            self.trader.load_private_keys(filereader.wallets)
+        except Exception as ex:
+            return self.show_error_message(self.messages[self.language]['csv_error'] + str(ex))
         self.widgets_tr['start_button'].setDisabled(True)
         self.widgets_tr['pause_button'].setDisabled(False)
         self.widgets_tr['stop_button'].setDisabled(False)
