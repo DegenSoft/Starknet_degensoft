@@ -21,6 +21,9 @@ from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClien
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
+from degensoft.filereader import UniversalFileReader
+from degensoft.decryption import is_base64
+
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
 
 
@@ -96,28 +99,28 @@ class StarknetTrader:
         self.logger.setLevel(logging.DEBUG)
         self.accounts = []
 
-    def load_private_keys_csv(self, filename):
+    def load_private_keys(self, wallets):
         accounts = []
-        with open(filename) as f:
-            dialect = csv.Sniffer().sniff(f.readline(), delimiters=";,")
-            f.seek(0)
-            for row in csv.DictReader(f, dialect=dialect):
-                if 'ethereum_private_key' not in row or 'starknet_address' not in row or \
-                        'starknet_private_key' not in row:
-                    raise ValueError('bad CSV file format')
-                ethereum_private_key = row['ethereum_private_key'] if row['ethereum_private_key'] else None
-                if ethereum_private_key:
-                    eth_account = Web3().eth.account.from_key(ethereum_private_key)  # checking ethereum private key
-                    # self.logger.debug(f'Loaded account: {eth_account.address}')
-                try:
-                    starknet_address = row['starknet_address']
-                    starknet_account = self.get_account(starknet_address, row['starknet_private_key'])
-                    # starknet_balance = Web3.from_wei(starknet_account.get_balance_sync(), 'ether')
-                except ValueError:
-                    raise ValueError('bad Starknet address or private key')
-                # self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)}')
-                accounts.append(TraderAccount(private_key=ethereum_private_key, starknet_address=starknet_address,
-                                              starknet_account=starknet_account))
+        # with open(filename) as f:
+        #     dialect = csv.Sniffer().sniff(f.readline(), delimiters=";,")
+        #     f.seek(0)
+        for row in wallets:
+            if 'ethereum_private_key' not in row or 'starknet_address' not in row or \
+                    'starknet_private_key' not in row:
+                raise ValueError('bad wallets file format')
+            ethereum_private_key = row['ethereum_private_key'] if row['ethereum_private_key'] else None
+            if ethereum_private_key:
+                eth_account = Web3().eth.account.from_key(ethereum_private_key)  # checking ethereum private key
+                # self.logger.debug(f'Loaded account: {eth_account.address}')
+            try:
+                starknet_address = row['starknet_address']
+                starknet_account = self.get_account(starknet_address, row['starknet_private_key'])
+                # starknet_balance = Web3.from_wei(starknet_account.get_balance_sync(), 'ether')
+            except ValueError:
+                raise ValueError('bad Starknet address or private key')
+            # self.logger.debug(f'Loaded Starknet account: {hex(starknet_account.address)}')
+            accounts.append(TraderAccount(private_key=ethereum_private_key, starknet_address=starknet_address,
+                                          starknet_account=starknet_account))
         self.accounts = accounts
 
     def pause(self):
@@ -349,7 +352,8 @@ class StarknetTrader:
         return tx_hash.hex()
 
     @action_decorator('bridge')
-    def withdraw_layerswap(self, ethereum_private_key, starknet_account, destination_network, amount_percent, wait_for_tx=False):
+    def withdraw_layerswap(self, ethereum_private_key, starknet_account, destination_network, amount_percent,
+                           wait_for_tx=False):
         bridge = LayerswapBridge(testnet=self.testnet)
         ethereum_account = EthereumAccount.from_key(ethereum_private_key)
         to_l2_address = ethereum_account.address
@@ -368,9 +372,11 @@ class StarknetTrader:
         if transfer_amount < 1:
             raise ValueError(f'Calculated amount less then zero because of the transfer fee, could not withdraw')
         elif transfer_amount < min_amount:
-            raise ValueError(f'Calculated amount less then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &lt; {Web3.from_wei(min_amount, "ether"):.4f}')
+            raise ValueError(
+                f'Calculated amount less then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &lt; {Web3.from_wei(min_amount, "ether"):.4f}')
         elif transfer_amount > max_amount:
-            raise ValueError(f'Calculated amount greater then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &gt; {Web3.from_wei(max_amount, "ether"):.4f}')
+            raise ValueError(
+                f'Calculated amount greater then minimum layerswap amount: {Web3.from_wei(transfer_amount, "ether"):.4f} &gt; {Web3.from_wei(max_amount, "ether"):.4f}')
         self.logger.debug(f'Amount is {Web3.from_wei(transfer_amount, "ether"):.4f} ETH')
         # print(type(Web3.from_wei(transfer_amount, 'ether')))
         tx_hash = bridge.deposit(account=starknet_account, amount=Web3.from_wei(transfer_amount, 'ether'),
