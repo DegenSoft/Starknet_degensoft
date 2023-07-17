@@ -11,6 +11,8 @@ from web3 import Web3
 
 
 def is_base64(s):
+    if not s:
+        return False
     try:
         if len(s) == 64:
             Web3().eth.account.from_key(s)
@@ -18,9 +20,7 @@ def is_base64(s):
     except Exception:
         ...
     try:
-        # Attempt to decode the string as Base64
         decoded = base64.b64decode(s)
-        # Ensure that the decoded string can be encoded back to the original input
         reencoded = base64.b64encode(decoded)
         return reencoded == s.encode()
     except Exception:
