@@ -218,8 +218,11 @@ class StarknetTrader:
 
                 if project['cls'] is None:
                     if not self.config.data.get('simulate'):
-                        self.back_swap(starknet_account=account.starknet_account,
-                                       count=project['count'], min_amount_usd=project['amount_usd'])
+                        try:
+                            self.back_swap(starknet_account=account.starknet_account,
+                                           count=project['count'], min_amount_usd=project['amount_usd'])
+                        except Exception as ex:
+                            self.logger.error(ex)
                 elif issubclass(project['cls'], BaseSwap):
                     eth_price = get_price('ETH')
                     random_amount = random_float(project['amount_usd'][0] / eth_price,
