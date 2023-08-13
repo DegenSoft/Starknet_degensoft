@@ -10,22 +10,32 @@ from Crypto.Util.Padding import unpad
 from web3 import Web3
 
 
+hex_symbols = "0123456789abcdef"
+
+
+def has_non_hex_symbols(s):
+    for i in s.strip().strip("0x"):
+        if i.lower() not in hex_symbols: return True
+    return False
+
+
 def is_base64(s):
     if not s:
         return False
+    if has_non_hex_symbols(s): return True
     try:
-        if len(s) == 64:
-            Web3().eth.account.from_key(s)
-            return False
-    except Exception:
+        Web3().eth.account.from_key("0x"+s.strip().strip("0x"))
+        return False
+    except Exception as e:
         ...
+
     try:
         decoded = base64.b64decode(s)
-        reencoded = base64.b64encode(decoded)
-        return reencoded == s.encode()
-    except Exception:
+        decoded = decoded.decode('utf-8')
+        if has_non_hex_symbols(decoded): return True
+        else: return False
+    except:
         return False
-
 
 # def decrypt_gpg_file(file_name, password):
 #     gpg = gnupg.GPG()
@@ -50,7 +60,11 @@ def get_cipher(password):
 def decrypt_private_key(encrypted_base64_pk, password):
     cipher = get_cipher(password)
     encrypted_pk = base64.b64decode(encrypted_base64_pk)
-    decrypted_bytes = unpad(cipher.decrypt(encrypted_pk), 16)
+    decrypted_unpadded = cipher.decrypt(encrypted_pk)
+    try:
+        decrypted_bytes = unpad(decrypted_unpadded, 16)
+    except Exception:
+        decrypted_bytes = decrypted_unpadded.strip(b"\xf0")
     decrypted_hex = binascii.hexlify(decrypted_bytes).decode()
     if len(decrypted_hex) in (66, 42):
         return '0x' + decrypted_hex[2:]

@@ -256,6 +256,7 @@ class MainWindow(QMainWindow):
             'decryption_error': 'Decryption error or wrong password',
             'password_dialog_title': 'Enter Password',
             'password_dialog_message': 'Enter password to decrypt wallets file:',
+            "decrypt_wallets_label": "Decrypt wallets"
         },
         'ru': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -300,6 +301,7 @@ class MainWindow(QMainWindow):
             'decryption_error': 'Ошибка расшифровки или неверный пароль',
             'password_dialog_title': 'Введите Пароль',
             'password_dialog_message': 'Введите пароль, что бы расшифровать файл кошельков:',
+            "decrypt_wallets_label": "Расшифровать кошельки"
         }
     }
 
@@ -420,6 +422,14 @@ class MainWindow(QMainWindow):
         layout.addLayout(private_keys_layout)
         # self.widgets_tr['private_keys_label'] = private_keys_label
         self.widgets_tr['select_file_button'] = select_file_button
+
+        decrypt_layout = QHBoxLayout()
+        decrypt_checkbox = QCheckBox("Decrypt wallets")
+        decrypt_checkbox.setChecked(True)
+        decrypt_layout.addWidget(decrypt_checkbox)
+        layout.addLayout(decrypt_layout)
+        self.widgets_tr[f'decrypt_wallets_label'] = decrypt_checkbox
+        self.widgets_config[f'decrypt_wallets_label'] = decrypt_checkbox
 
         # starknet_seed_layout = QHBoxLayout()
         # self.starknet_seed_label = QLabel("Starknet seed file:")
@@ -720,7 +730,7 @@ class MainWindow(QMainWindow):
         try:
             filereader = UniversalFileReader(conf['file_name'])
             filereader.load()
-            if filereader.is_encrypted():
+            if filereader.is_encrypted() and self.widgets_config['decrypt_wallets_label'].isChecked():
                 dialog = PasswordDialog(language=self.language, messages=self.messages)
                 result = dialog.exec_()
                 if not (result and dialog.lineEdit.text()):

@@ -333,7 +333,7 @@ class StarknetTrader:
             balance_from_native = token_to_swap["token"].from_native(token_to_swap["balance"])
             self.logger.info(f'Swap {token_to_swap["cls"].swap_name}: {balance_from_native:.4f} '
                              f'{token_to_swap["symbol"]} ({token_to_swap["balance_usd"]:.4f} USD) -> ETH')
-            self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
+            # self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
             self.swap(swap_cls=token_to_swap["cls"],
                       account=starknet_account,
                       amount=token_to_swap["balance"],
