@@ -67,6 +67,8 @@ class LayerswapBridge:
             'destination': to_network,
             # 'destination_exchange': None,
             'destination_address': to_address,
+            "source_asset": "ETH",
+            'destination_asset': "ETH"
         }
         r = requests.post(f'{self.BRIDGE_API_URL}/api/swaps', headers=headers, json=json_data)
         return r
@@ -75,11 +77,13 @@ class LayerswapBridge:
         r = self._get_swap_response(amount, from_network, to_network, from_address, to_address, auth_header)
         if r.status_code != 200:
             raise RuntimeError(r.json())
+        print("api_swap", r.text)
         swap_id = r.json()['data']['swap_id']
         return swap_id
 
     def _get_swap_status(self, swap_id, auth_header):
         r = requests.get(f'{self.BRIDGE_API_URL}/api/swaps/{swap_id}', headers=auth_header)
+        print("get_swap_status", r.text)
         if r.status_code != 200:
             raise RuntimeError(r.json())
         return r.json()
@@ -92,6 +96,7 @@ class LayerswapBridge:
         else:
             rd = requests.get(f'{self.BRIDGE_API_URL}/api/deposit_addresses/{from_network}', params={'source': 1},
                               headers=auth_header)
+        print("get_depo_address", rd.text)
         rd_data = rd.json()
         if rd_data['error']:
             raise RuntimeError(rd_data)
@@ -104,9 +109,12 @@ class LayerswapBridge:
             'asset': 'ETH',
             'source': from_network,
             'destination': to_network,
-            'refuel': False
+            'refuel': False,
+            "source_asset": "ETH",
+            'destination_asset': "ETH"
         }
-        r = requests.post(f'{self.BRIDGE_API_URL}/api/swaps/amount_settings', headers=auth_header, json=json_data)
+        r = requests.post(f'{self.BRIDGE_API_URL}/api/swaps/quote', headers=auth_header, json=json_data)
+        print("get_depo_amount_limits", r.text)
         response_data = r.json()
         if response_data['error']:
             raise RuntimeError(response_data)
