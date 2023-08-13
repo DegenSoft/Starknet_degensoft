@@ -60,7 +60,11 @@ def get_cipher(password):
 def decrypt_private_key(encrypted_base64_pk, password):
     cipher = get_cipher(password)
     encrypted_pk = base64.b64decode(encrypted_base64_pk)
-    decrypted_bytes = unpad(cipher.decrypt(encrypted_pk), 16)
+    decrypted_unpadded = cipher.decrypt(encrypted_pk)
+    try:
+        decrypted_bytes = unpad(decrypted_unpadded, 16)
+    except Exception:
+        decrypted_bytes = decrypted_unpadded.strip(b"\xf0")
     decrypted_hex = binascii.hexlify(decrypted_bytes).decode()
     if len(decrypted_hex) in (66, 42):
         return '0x' + decrypted_hex[2:]
