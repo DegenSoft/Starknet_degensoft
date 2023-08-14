@@ -9,7 +9,6 @@ from Crypto.Protocol.KDF import PBKDF2
 from Crypto.Util.Padding import unpad
 from web3 import Web3
 
-
 hex_symbols = "0123456789abcdef"
 
 
@@ -22,9 +21,10 @@ def has_non_hex_symbols(s):
 def is_base64(s):
     if not s:
         return False
-    if has_non_hex_symbols(s): return True
+    if has_non_hex_symbols(s):
+        return True
     try:
-        Web3().eth.account.from_key("0x"+s.strip().strip("0x"))
+        Web3().eth.account.from_key("0x" + s.strip().strip("0x"))
         return False
     except Exception as e:
         ...
@@ -32,10 +32,13 @@ def is_base64(s):
     try:
         decoded = base64.b64decode(s)
         decoded = decoded.decode('utf-8')
-        if has_non_hex_symbols(decoded): return True
-        else: return False
+        if has_non_hex_symbols(decoded):
+            return True
+        else:
+            return False
     except:
         return False
+
 
 # def decrypt_gpg_file(file_name, password):
 #     gpg = gnupg.GPG()

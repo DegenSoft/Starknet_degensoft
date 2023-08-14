@@ -21,8 +21,6 @@ from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClien
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
-from degensoft.filereader import UniversalFileReader
-from degensoft.decryption import is_base64
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
 
