@@ -103,7 +103,8 @@ class TraderThread(QThread):
         self.trader.run(projects=projects, wallet_delay=wallet_delay,
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
                         random_swap_project=self.config['random_swap_checkbox'],
-                        api=self.api)
+                        api=self.api,
+                        gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None)
         self.task_completed.emit()
         # self.logger.removeHandler(self.handler)
 
@@ -256,7 +257,8 @@ class MainWindow(QMainWindow):
             'decryption_error': 'Decryption error or wrong password',
             'password_dialog_title': 'Enter Password',
             'password_dialog_message': 'Enter password to decrypt wallets file:',
-            "decrypt_wallets_label": "Decrypt wallets"
+            "decrypt_wallets_label": "Decrypt wallets",
+            "gas_limit_checkbox": "Ethereum Gas limit",
         },
         'ru': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -301,7 +303,8 @@ class MainWindow(QMainWindow):
             'decryption_error': 'Ошибка расшифровки или неверный пароль',
             'password_dialog_title': 'Введите Пароль',
             'password_dialog_message': 'Введите пароль, что бы расшифровать файл кошельков:',
-            "decrypt_wallets_label": "Расшифровать кошельки"
+            "decrypt_wallets_label": "Расшифровать кошельки",
+            "gas_limit_checkbox": "Ethereum лимит газа",
         }
     }
 
@@ -428,8 +431,22 @@ class MainWindow(QMainWindow):
         decrypt_checkbox.setChecked(True)
         decrypt_layout.addWidget(decrypt_checkbox)
         layout.addLayout(decrypt_layout)
-        self.widgets_tr[f'decrypt_wallets_label'] = decrypt_checkbox
-        self.widgets_config[f'decrypt_wallets_label'] = decrypt_checkbox
+        self.widgets_tr['decrypt_wallets_label'] = decrypt_checkbox
+        self.widgets_config['decrypt_wallets_label'] = decrypt_checkbox
+
+        gas_limit_layout = QHBoxLayout()
+        gas_limit_checkbox = QCheckBox("Ethereum gas limit")
+        # gas_limit_checkbox.setChecked(False)
+        gas_limit_spinner = QSpinBox()
+        gas_limit_spinner.setRange(1, 1000)
+        gas_limit_gwei_label = QLabel('gwei')
+        gas_limit_layout.addWidget(gas_limit_checkbox)
+        gas_limit_layout.addWidget(gas_limit_spinner)
+        gas_limit_layout.addWidget(gas_limit_gwei_label, 1)
+        self.widgets_config['gas_limit_spinner'] = gas_limit_spinner
+        self.widgets_config['gas_limit_checkbox'] = gas_limit_checkbox
+        self.widgets_tr['gas_limit_checkbox'] = gas_limit_checkbox
+        layout.addLayout(gas_limit_layout)
 
         # starknet_seed_layout = QHBoxLayout()
         # self.starknet_seed_label = QLabel("Starknet seed file:")

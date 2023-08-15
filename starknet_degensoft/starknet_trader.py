@@ -93,6 +93,7 @@ class StarknetTrader:
         self.starknet_client = GatewayClient(rpc_url) if '.starknet.io' in rpc_url else FullNodeClient(rpc_url)
         self.starknet_contracts = self.config.data['starknet_contracts']['goerli' if testnet else 'mainnet'].copy()
         self.starknet_eth_contract = self.starknet_contracts.pop('ETH')
+        self.ethereum_node = Node(rpc_url='https://eth.llamarpc.com', explorer_url='https://etherscan.io/')
         self.logger = logging.getLogger('starknet')
         self.logger.setLevel(logging.DEBUG)
         self.accounts = []
@@ -155,13 +156,26 @@ class StarknetTrader:
         else:
             return f'https://starkscan.co/contract/{address}'
 
+    def wait_for_gas(self, max_gwei):
+        while True:
+            gwei = Web3.from_wei(self.ethereum_node.gas_price, 'gwei')
+            if gwei < max_gwei:
+                self.logger.debug(f'Gas is {gwei} gwei')
+                break
+            else:
+                self.logger.debug(f'Gas {gwei} gwei > {max_gwei} gwei, waiting for the cheap gas')
+                self.process_pause(60)
+            if self.stopped:
+                break
+
     def run(self,
             projects: list,
             wallet_delay: tuple = (0, 0),
             project_delay: tuple = (0, 0),
             shuffle: bool = False,
             random_swap_project: bool = False,
-            api: DegenSoftApiClient = None):
+            api: DegenSoftApiClient = None,
+            gas_limit: int = None):
         self.paused = False
         self.stopped = False
         self._api = api
@@ -204,6 +218,8 @@ class StarknetTrader:
                 if not is_swap_project:
                     uniq_projects.append(project)
             for j, project in enumerate(uniq_projects, 1):
+                if gas_limit is not None:
+                    self.wait_for_gas(gas_limit)
                 if self.paused:
                     self.process_pause()
                 if self.stopped:
