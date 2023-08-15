@@ -103,7 +103,7 @@ class TraderThread(QThread):
         self.trader.run(projects=projects, wallet_delay=wallet_delay,
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
                         random_swap_project=self.config['random_swap_checkbox'],
-                        api=self.api)
+                        api=self.api, config=self.config)
         self.task_completed.emit()
         # self.logger.removeHandler(self.handler)
 
@@ -256,7 +256,8 @@ class MainWindow(QMainWindow):
             'decryption_error': 'Decryption error or wrong password',
             'password_dialog_title': 'Enter Password',
             'password_dialog_message': 'Enter password to decrypt wallets file:',
-            "decrypt_wallets_label": "Decrypt wallets"
+            "decrypt_wallets_label": "Decrypt wallets",
+            "gas_limit_label": "Gas limit:"
         },
         'ru': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -301,7 +302,8 @@ class MainWindow(QMainWindow):
             'decryption_error': 'Ошибка расшифровки или неверный пароль',
             'password_dialog_title': 'Введите Пароль',
             'password_dialog_message': 'Введите пароль, что бы расшифровать файл кошельков:',
-            "decrypt_wallets_label": "Расшифровать кошельки"
+            "decrypt_wallets_label": "Расшифровать кошельки",
+            "gas_limit_label": "Лимит газа:"
         }
     }
 
@@ -427,9 +429,17 @@ class MainWindow(QMainWindow):
         decrypt_checkbox = QCheckBox("Decrypt wallets")
         decrypt_checkbox.setChecked(True)
         decrypt_layout.addWidget(decrypt_checkbox)
+        gas_limit_layout = QHBoxLayout()
+        gas_limit_label = QLabel("Gas limit: ")
+        gas_limit_entry = QLineEdit("0")
+        gas_limit_layout.addWidget(gas_limit_label)
+        gas_limit_layout.addWidget(gas_limit_entry)
         layout.addLayout(decrypt_layout)
+        layout.addLayout(gas_limit_layout)
         self.widgets_tr[f'decrypt_wallets_label'] = decrypt_checkbox
+        self.widgets_tr[f'gas_limit_label'] = gas_limit_label
         self.widgets_config[f'decrypt_wallets_label'] = decrypt_checkbox
+        self.widgets_config[f'gas_limit_entry'] = gas_limit_entry
 
         # starknet_seed_layout = QHBoxLayout()
         # self.starknet_seed_label = QLabel("Starknet seed file:")
@@ -727,6 +737,7 @@ class MainWindow(QMainWindow):
         if self.worker_thread is not None and self.worker_thread.isRunning():
             self.logger.error('Worker is already running.. please wait')
             return
+        conf['gas_limit'] = float(self.widgets_config['gas_limit_entry'].text())
         try:
             filereader = UniversalFileReader(conf['file_name'])
             filereader.load()

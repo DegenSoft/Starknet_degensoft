@@ -5,6 +5,7 @@ import sys
 import logging
 import random
 import colorlog
+import requests
 from web3 import Web3
 from decimal import Decimal
 
@@ -124,3 +125,24 @@ def mask_hex_in_string(input_string):
         else:
             parts[i] = pattern_hex.sub(lambda m: m.group(1) + m.group(2)[:4] + '*' * (len(m.group(2)) - 8) + m.group(2)[-4:], parts[i])
     return ''.join(parts)
+
+
+def get_ethereum_gas():
+    url1 = "https://api.etherscan.io/api?module=gastracker&action=gasoracle"
+    url2 = "https://etherscan.io/autoUpdateGasTracker.ashx?sid=2d7306740787df76b0251564d7b71bc5"
+    try:
+        r = requests.get(url1)
+        r1 = float(r.json()['result']['SafeGasPrice'])
+        return r1
+    except: pass
+    try:
+        r = requests.get(url2, headers={
+            "X-Requested-With": "XMLHttpRequest",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
+            "Cookie": "ASP.NET_SessionId=v4bk44fd1wl2qtjfeqffchrn; _gid=GA1.2.646646230.1691738384; __cflb=02DiuFnsSsHWYH8WqVXaqGvd6BSBaXQLUn3pDNvdBsJJQ; _ga_XPR6BMZXSN=GS1.1.1691909625.1.1.1691910169.0.0.0; _ga_T1JC9RNQXV=GS1.1.1691933672.12.0.1691933672.0.0.0; _ga=GA1.2.1937570242.1691308386; cf_clearance=cECnIFmDx1Sk0iXdNUBHlSqQ_Yrjm1yn.LU88pDY.04-1691933675-0-1-4b32a90f.8bfae033.b3562468-0.2.1691933675; __cuid=92de69d8ce3a43a996c84f3abc18d6c0; amp_fef1e8=3ebd2a67-f4bc-4529-9ead-fa408e774325R...1h7nho042.1h7nho04r.1.1.2"
+        })
+        r2 = float(r.json()['avgPrice'])
+        return r2
+    except: pass
+    return 0
+

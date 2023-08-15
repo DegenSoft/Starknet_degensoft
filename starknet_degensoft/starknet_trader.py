@@ -19,7 +19,7 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
-from starknet_degensoft.utils import random_float, get_explorer_address_url
+from starknet_degensoft.utils import random_float, get_explorer_address_url, get_ethereum_gas
 
 from degensoft.filereader import UniversalFileReader
 from degensoft.decryption import is_base64
@@ -163,13 +163,21 @@ class StarknetTrader:
             project_delay: tuple = (0, 0),
             shuffle: bool = False,
             random_swap_project: bool = False,
-            api: DegenSoftApiClient = None):
+            api: DegenSoftApiClient = None,
+            config: dict = {}):
         self.paused = False
         self.stopped = False
         self._api = api
         if shuffle:
             random.shuffle(self.accounts)
         self.logger.info(f'Ethereum price: {get_price("ETH")}$')
+        current_gas = get_ethereum_gas()
+        gas_limit = config.get("gas_limit", 0)
+        if gas_limit > 0 and current_gas > gas_limit:
+            self.logger.info(f"Current Ethereum network gas ({current_gas} GWEI) is larger than selected ({gas_limit} GWEI). Retrying in 1 minute...")
+            self.process_pause(60)
+            if not self.stopped: return self.run(projects, wallet_delay, project_delay, shuffle, random_swap_project, api, config)
+            else: return
         for i, account in enumerate(self.accounts, 1):
             if self.paused:
                 self.process_pause()
