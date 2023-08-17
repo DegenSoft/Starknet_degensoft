@@ -64,9 +64,6 @@ def decrypt_private_key(encrypted_base64_pk, password):
     try:
         decrypted_bytes = unpad(decrypted_unpadded, 16)
     except Exception:
-        decrypted_bytes = decrypted_unpadded.strip(b"\xf0")
-    decrypted_hex = binascii.hexlify(decrypted_bytes).decode()
-    if len(decrypted_hex) in (66, 42):
-        return '0x' + decrypted_hex[2:]
-    else:
-        return '0x' + decrypted_hex
+        decrypted_bytes = decrypted_unpadded.strip(b"\x0f")
+    decrypted_hex = decrypted_bytes.decode('utf-8')
+    return decrypted_hex
