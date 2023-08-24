@@ -945,7 +945,7 @@ def main():
     app = QApplication(sys.argv)
     # app.setStyle(QStyleFactory.create('Windows'))
     main_window = MainWindow()
-    main_window.setMinimumSize(600, 700)
+    main_window.setMinimumSize(600, 820)
     frame_geometry = main_window.frameGeometry()
     center_point = QDesktopWidget().availableGeometry().center()
     frame_geometry.moveCenter(center_point)
