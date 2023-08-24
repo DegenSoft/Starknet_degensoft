@@ -284,7 +284,11 @@ class MainWindow(QMainWindow):
             "gas_limit_label": "Gas limit:",
             "configs_label": "Configuration options",
             "save_config_button": "Save current configuration",
-            "select_configs_button": "Load configurations"
+            "select_configs_button": "Load configurations",
+            "delay_from": "Delay between configurations from",
+            "delay_to": "to",
+            "repeat_count": "repeat count: ",
+            "use_configs_checkbox": "Use selected configurations"
         },
         'ru': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -333,7 +337,11 @@ class MainWindow(QMainWindow):
             "gas_limit_label": "Лимит газа:",
             "configs_label": "Настройки конфигураций",
             "save_config_button": "Сохранить текущую конфигурацию",
-            "select_configs_button": "Загрузить конфигурации"
+            "select_configs_button": "Загрузить конфигурации",
+            "delay_from": "Задержка между конфигурациями от",
+            "delay_to": "до",
+            "repeat_count": "количество повторений: ",
+            "use_configs_checkbox": "Использовать выбранные конфигурации"
         }
     }
 
@@ -522,6 +530,9 @@ class MainWindow(QMainWindow):
         self.widgets_tr['use_configs_checkbox'] = use_configs_checkbox
         self.widgets_tr['save_config_button'] = save_config_button
         self.widgets_tr['configs_label'] = configs_label
+        self.widgets_tr['delay_from'] = configs_delay_label
+        self.widgets_tr['delay_to'] = configs_delay_to_label
+        self.widgets_tr['repeat_count'] = repeat_count_label
 
 
 
