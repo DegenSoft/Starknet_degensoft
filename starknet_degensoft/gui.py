@@ -10,7 +10,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QMetaObject
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
-    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox
+    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, QFrame
 
 from degensoft.filereader import UniversalFileReader
 from starknet_degensoft.api_client2 import DegenSoftApiClient
@@ -533,9 +533,7 @@ class MainWindow(QMainWindow):
         self.widgets_tr['delay_from'] = configs_delay_label
         self.widgets_tr['delay_to'] = configs_delay_to_label
         self.widgets_tr['repeat_count'] = repeat_count_label
-
-
-
+        use_configs_checkbox.stateChanged.connect(self.on_use_configs_changed)
 
         # starknet_seed_layout = QHBoxLayout()
         # self.starknet_seed_label = QLabel("Starknet seed file:")
@@ -547,9 +545,13 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(QSplitter())
 
+        self.projects_frame = QFrame()
+        projects_layout = QVBoxLayout()
+        self.projects_frame.setLayout(projects_layout)
+
         bridges_label = QLabel()
         bridges_label.setFont(bold_font)
-        layout.addWidget(bridges_label)
+        projects_layout.addWidget(bridges_label)
         self.widgets_tr['bridges_label'] = bridges_label
 
         for key in self.bridges:
@@ -581,12 +583,12 @@ class MainWindow(QMainWindow):
             self.bridges[key]['checkbox'] = bridge_checkbox
             self.bridges[key]['min_eth'] = min_eth_selector
             self.bridges[key]['max_eth'] = max_eth_selector
-            layout.addLayout(bridge_layout)
+            projects_layout.addLayout(bridge_layout)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         back_bridges_label = QLabel()
         back_bridges_label.setFont(bold_font)
-        layout.addWidget(back_bridges_label)
+        projects_layout.addWidget(back_bridges_label)
         self.widgets_tr['back_bridges_label'] = back_bridges_label
 
         for key in self.back_bridges:
@@ -618,13 +620,13 @@ class MainWindow(QMainWindow):
             self.back_bridges[key]['checkbox'] = back_bridge_checkbox
             self.back_bridges[key]['min_percent'] = min_percent_selector
             self.back_bridges[key]['max_percent'] = max_percent_selector
-            layout.addLayout(back_bridge_layout)
+            projects_layout.addLayout(back_bridge_layout)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         quests_label = QLabel()
         quests_label.setFont(bold_font)
         self.widgets_tr['quests_label'] = quests_label
-        layout.addWidget(quests_label)
+        projects_layout.addWidget(quests_label)
 
         for key in self.swaps:
             quest_layout = QHBoxLayout()
@@ -652,21 +654,21 @@ class MainWindow(QMainWindow):
             self.swaps[key]['checkbox'] = swap_checkbox
             self.swaps[key]['min_price'] = min_eth_selector
             self.swaps[key]['max_price'] = max_eth_selector
-            layout.addLayout(quest_layout)
+            projects_layout.addLayout(quest_layout)
 
         random_swap_checkbox = QCheckBox()
         self.widgets_tr['random_swap_checkbox'] = random_swap_checkbox
         self.widgets_config['random_swap_checkbox'] = random_swap_checkbox
-        layout.addWidget(random_swap_checkbox)
+        projects_layout.addWidget(random_swap_checkbox)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         backswaps_label = QLabel()
         backswaps_label.setFont(bold_font)
         self.widgets_tr['backswaps_label'] = backswaps_label
-        layout.addWidget(backswaps_label)
+        projects_layout.addWidget(backswaps_label)
 
         backswaps_checkbox = QCheckBox()
-        layout.addWidget(backswaps_checkbox)
+        projects_layout.addWidget(backswaps_checkbox)
         self.widgets_tr['backswaps_checkbox'] = backswaps_checkbox
         self.widgets_config['backswaps_checkbox'] = backswaps_checkbox
         backswaps_layout = QHBoxLayout()
@@ -682,13 +684,13 @@ class MainWindow(QMainWindow):
         backswaps_layout.addWidget(backswaps_count_spinbox)
         backswaps_layout.addWidget(self.widgets_tr['backswaps_usd_label'])
         backswaps_layout.addWidget(backswaps_usd_spinbox)
-        layout.addLayout(backswaps_layout)
+        projects_layout.addLayout(backswaps_layout)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         options_label = QLabel()
         options_label.setFont(bold_font)
         self.widgets_tr['options_label'] = options_label
-        layout.addWidget(options_label)
+        projects_layout.addWidget(options_label)
 
         for option_name in ('wallet_delay', 'project_delay'):
             options_layout = QHBoxLayout()
@@ -714,13 +716,14 @@ class MainWindow(QMainWindow):
             self.widgets_tr[f'{option_name}_max_sec_label'] = max_option_1_label
             self.widgets_config[f'{option_name}_min_sec'] = min_option_1_selector
             self.widgets_config[f'{option_name}_max_sec'] = max_option_1_selector
-            layout.addLayout(options_layout)
+            projects_layout.addLayout(options_layout)
 
         shuffle_checkbox = QCheckBox('Shuffle wallets')
         self.widgets_config['shuffle_checkbox'] = shuffle_checkbox
         self.widgets_tr['shuffle_checkbox'] = shuffle_checkbox
-        layout.addWidget(shuffle_checkbox)
+        projects_layout.addWidget(shuffle_checkbox)
 
+        layout.addWidget(self.projects_frame)
         layout.addWidget(QSplitter())
 
         button_layout = QHBoxLayout()
@@ -897,6 +900,9 @@ class MainWindow(QMainWindow):
     def on_hide_checkbox_changed(self):
         echo_mode = QLineEdit.Password if self.sender().isChecked() else QLineEdit.Normal
         self.widgets_config['api_key'].setEchoMode(echo_mode)
+
+    def on_use_configs_changed(self):
+        self.projects_frame.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
 
     def on_bridge_checkbox_clicked(self):
         for key in self.bridges:
