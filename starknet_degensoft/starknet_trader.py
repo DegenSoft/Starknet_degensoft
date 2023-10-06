@@ -19,10 +19,8 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
-from starknet_degensoft.utils import random_float, get_explorer_address_url, get_ethereum_gas
+from starknet_degensoft.utils import random_float, get_explorer_address_url
 
-from degensoft.filereader import UniversalFileReader
-from degensoft.decryption import is_base64
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
 
@@ -95,6 +93,7 @@ class StarknetTrader:
         self.starknet_client = GatewayClient(rpc_url) if '.starknet.io' in rpc_url else FullNodeClient(rpc_url)
         self.starknet_contracts = self.config.data['starknet_contracts']['goerli' if testnet else 'mainnet'].copy()
         self.starknet_eth_contract = self.starknet_contracts.pop('ETH')
+        self.ethereum_node = Node(rpc_url='https://eth.llamarpc.com', explorer_url='https://etherscan.io/')
         self.logger = logging.getLogger('starknet')
         self.logger.setLevel(logging.DEBUG)
         self.accounts = []
@@ -157,6 +156,18 @@ class StarknetTrader:
         else:
             return f'https://starkscan.co/contract/{address}'
 
+    def wait_for_gas(self, max_gwei):
+        while True:
+            gwei = Web3.from_wei(self.ethereum_node.gas_price, 'gwei')
+            if gwei < max_gwei:
+                self.logger.debug(f'Gas is {gwei} gwei')
+                break
+            else:
+                self.logger.debug(f'Gas {gwei} gwei > {max_gwei} gwei, waiting for the cheap gas')
+                self.process_pause(60)
+            if self.stopped:
+                break
+
     def run(self,
             projects: list,
             wallet_delay: tuple = (0, 0),
@@ -164,20 +175,13 @@ class StarknetTrader:
             shuffle: bool = False,
             random_swap_project: bool = False,
             api: DegenSoftApiClient = None,
-            config: dict = {}):
+            gas_limit: int = None):
         self.paused = False
         self.stopped = False
         self._api = api
         if shuffle:
             random.shuffle(self.accounts)
         self.logger.info(f'Ethereum price: {get_price("ETH")}$')
-        current_gas = get_ethereum_gas()
-        gas_limit = config.get("gas_limit", 0)
-        if gas_limit > 0 and current_gas > gas_limit:
-            self.logger.info(f"Current Ethereum network gas ({current_gas} GWEI) is larger than selected ({gas_limit} GWEI). Retrying in 1 minute...")
-            self.process_pause(60)
-            if not self.stopped: return self.run(projects, wallet_delay, project_delay, shuffle, random_swap_project, api, config)
-            else: return
         for i, account in enumerate(self.accounts, 1):
             if self.paused:
                 self.process_pause()
@@ -214,6 +218,8 @@ class StarknetTrader:
                 if not is_swap_project:
                     uniq_projects.append(project)
             for j, project in enumerate(uniq_projects, 1):
+                if gas_limit is not None:
+                    self.wait_for_gas(gas_limit)
                 if self.paused:
                     self.process_pause()
                 if self.stopped:
@@ -226,8 +232,11 @@ class StarknetTrader:
 
                 if project['cls'] is None:
                     if not self.config.data.get('simulate'):
-                        self.back_swap(starknet_account=account.starknet_account,
-                                       count=project['count'], min_amount_usd=project['amount_usd'])
+                        try:
+                            self.back_swap(starknet_account=account.starknet_account,
+                                           count=project['count'], min_amount_usd=project['amount_usd'])
+                        except Exception as ex:
+                            self.logger.error(ex)
                 elif issubclass(project['cls'], BaseSwap):
                     eth_price = get_price('ETH')
                     random_amount = random_float(project['amount_usd'][0] / eth_price,

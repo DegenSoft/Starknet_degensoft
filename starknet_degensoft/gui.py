@@ -127,8 +127,9 @@ class TraderThread(QThread):
         self.trader.run(projects=projects, wallet_delay=wallet_delay,
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
                         random_swap_project=self.config['random_swap_checkbox'],
-                        api=self.api, config=self.config)
-
+                        api=self.api,
+                        gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None)
+        self.task_completed.emit()
         # self.logger.removeHandler(self.handler)
 
     def pause(self):
@@ -289,6 +290,7 @@ class MainWindow(QMainWindow):
             "delay_to": "to",
             "repeat_count": "repeat count: ",
             "use_configs_checkbox": "Use selected configurations"
+            "gas_limit_checkbox": "Ethereum Gas limit",
         },
         'ru': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -342,6 +344,7 @@ class MainWindow(QMainWindow):
             "delay_to": "до",
             "repeat_count": "количество повторений: ",
             "use_configs_checkbox": "Использовать выбранные конфигурации"
+            "gas_limit_checkbox": "Ethereum лимит газа",
         }
     }
 
@@ -468,17 +471,23 @@ class MainWindow(QMainWindow):
         decrypt_checkbox = QCheckBox("Decrypt wallets")
         decrypt_checkbox.setChecked(True)
         decrypt_layout.addWidget(decrypt_checkbox)
-        gas_limit_layout = QHBoxLayout()
-        gas_limit_label = QLabel("Gas limit: ")
-        gas_limit_entry = QLineEdit("0")
-        gas_limit_layout.addWidget(gas_limit_label)
-        gas_limit_layout.addWidget(gas_limit_entry)
         layout.addLayout(decrypt_layout)
+        self.widgets_tr['decrypt_wallets_label'] = decrypt_checkbox
+        self.widgets_config['decrypt_wallets_label'] = decrypt_checkbox
+
+        gas_limit_layout = QHBoxLayout()
+        gas_limit_checkbox = QCheckBox("Ethereum gas limit")
+        # gas_limit_checkbox.setChecked(False)
+        gas_limit_spinner = QSpinBox()
+        gas_limit_spinner.setRange(1, 1000)
+        gas_limit_gwei_label = QLabel('gwei')
+        gas_limit_layout.addWidget(gas_limit_checkbox)
+        gas_limit_layout.addWidget(gas_limit_spinner)
+        gas_limit_layout.addWidget(gas_limit_gwei_label, 1)
+        self.widgets_config['gas_limit_spinner'] = gas_limit_spinner
+        self.widgets_config['gas_limit_checkbox'] = gas_limit_checkbox
+        self.widgets_tr['gas_limit_checkbox'] = gas_limit_checkbox
         layout.addLayout(gas_limit_layout)
-        self.widgets_tr[f'decrypt_wallets_label'] = decrypt_checkbox
-        self.widgets_tr[f'gas_limit_label'] = gas_limit_label
-        self.widgets_config[f'decrypt_wallets_label'] = decrypt_checkbox
-        self.widgets_config[f'gas_limit_entry'] = gas_limit_entry
 
         mh = 22
         configs_label = QLabel()
@@ -839,7 +848,6 @@ class MainWindow(QMainWindow):
         if self.worker_thread is not None and self.worker_thread.isRunning():
             self.logger.error('Worker is already running.. please wait')
             return
-        conf['gas_limit'] = float(self.widgets_config['gas_limit_entry'].text())
         try:
             filereader = UniversalFileReader(conf['file_name'])
             filereader.load()

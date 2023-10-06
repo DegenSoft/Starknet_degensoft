@@ -2,7 +2,7 @@
 
 Для установки под Windows 10 64 нужно скачать и поставить следующие пакеты:
 
-## Python 3.10 или 3.11
+## Python 3.11
 
 * https://www.python.org/downloads/windows/
 * https://www.python.org/ftp/python/3.11.3/python-3.11.3-amd64.exe
