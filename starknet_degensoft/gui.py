@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import random
@@ -9,7 +10,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QMetaObject
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
-    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox
+    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, QFrame
 
 from degensoft.filereader import UniversalFileReader
 from starknet_degensoft.api_client2 import DegenSoftApiClient
@@ -60,7 +61,7 @@ class TraderThread(QThread):
     task_completed = pyqtSignal()
     # logger_signal = pyqtSignal(str)
 
-    def __init__(self, api, trader, config, swaps, bridges, back_bridges):
+    def __init__(self, api, trader, config, swaps, bridges, back_bridges, configs={}):
         super().__init__()
         self.api = api
         self.trader = trader
@@ -69,12 +70,35 @@ class TraderThread(QThread):
         self.bridges = bridges
         self.back_bridges = back_bridges
         self.paused = False
+        self.configs = configs
         self.logger = logging.getLogger('starknet')
         # self.handler = QtSignalLogHandler(signal=self.logger_signal)
         # self.handler.setFormatter(log_formatter)
         # self.logger.addHandler(self.handler)
 
     def run(self):
+        use_configs = self.configs['use']
+        if use_configs:
+            repeat_count = self.configs['repeat_count']
+            for counter in range(1, repeat_count + 1):
+                for config_fn in self.configs['file_names']:
+                    loaded_conf = json.load(open(config_fn, "r", encoding='utf-8'))
+                    if loaded_conf.get("config_type", "") != "additional":
+                        self.logger.error(f"Invalid config: {os.path.basename(config_fn)}")
+                        continue
+                    self.config.update(loaded_conf['gui_config'])
+                    self.logger.info(f"Started config: {os.path.basename(config_fn)} [{counter}/{repeat_count}]")
+                    self.process_run()
+                    if self.trader.stopped:
+                        return self.task_completed.emit()
+                    self.trader.process_pause(random.randint(self.configs['delay_from'], self.configs['delay_to']))
+                    if self.trader.stopped:
+                        return self.task_completed.emit()
+        else:
+            self.process_run()
+        self.task_completed.emit()
+
+    def process_run(self):
         wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
         swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
         projects = []
@@ -258,6 +282,14 @@ class MainWindow(QMainWindow):
             'password_dialog_title': 'Enter Password',
             'password_dialog_message': 'Enter password to decrypt wallets file:',
             "decrypt_wallets_label": "Decrypt wallets",
+            "gas_limit_label": "Gas limit:",
+            "configs_label": "Configuration options",
+            "save_config_button": "Save current configuration",
+            "select_configs_button": "Load configurations",
+            "delay_from": "Delay between configurations from",
+            "delay_to": "to",
+            "repeat_count": "repeat count: ",
+            "use_configs_checkbox": "Use selected configurations"
             "gas_limit_checkbox": "Ethereum Gas limit",
         },
         'ru': {
@@ -304,6 +336,14 @@ class MainWindow(QMainWindow):
             'password_dialog_title': 'Введите Пароль',
             'password_dialog_message': 'Введите пароль, что бы расшифровать файл кошельков:',
             "decrypt_wallets_label": "Расшифровать кошельки",
+            "gas_limit_label": "Лимит газа:",
+            "configs_label": "Настройки конфигураций",
+            "save_config_button": "Сохранить текущую конфигурацию",
+            "select_configs_button": "Загрузить конфигурации",
+            "delay_from": "Задержка между конфигурациями от",
+            "delay_to": "до",
+            "repeat_count": "количество повторений: ",
+            "use_configs_checkbox": "Использовать выбранные конфигурации"
             "gas_limit_checkbox": "Ethereum лимит газа",
         }
     }
@@ -344,6 +384,7 @@ class MainWindow(QMainWindow):
     def load_config(self):
         self.config.load(self.CONFIG_FILENAME)
         for key in self.config.data['gui_config']:
+            if key == "selected_configs_entry": continue
             value = self.config.data['gui_config'][key]
             if key not in self.widgets_config:
                 continue
@@ -448,6 +489,61 @@ class MainWindow(QMainWindow):
         self.widgets_tr['gas_limit_checkbox'] = gas_limit_checkbox
         layout.addLayout(gas_limit_layout)
 
+        mh = 22
+        configs_label = QLabel()
+        configs_label.setFont(bold_font)
+        layout.addWidget(configs_label)
+        configs_layout = QVBoxLayout()
+        save_config_button = QPushButton()
+        save_config_button.setMinimumHeight(mh)
+        save_config_button.clicked.connect(self.save_config_pressed)
+        configs_layout.addWidget(save_config_button)
+        select_configs_layout = QHBoxLayout()
+        selected_configs_entry = QLineEdit()
+        selected_configs_entry.setMinimumWidth(100)
+        selected_configs_entry.setReadOnly(True)
+        selected_configs_entry.setMinimumHeight(mh)
+        select_configs_layout.addWidget(selected_configs_entry)
+        select_configs_button = QPushButton()
+        select_configs_button.setMinimumHeight(mh)
+        select_configs_button.clicked.connect(self.on_select_configs_clicked)
+        select_configs_layout.addWidget(select_configs_button)
+        configs_layout.addLayout(select_configs_layout)
+        use_configs_checkbox = QCheckBox("Use selected configurations")
+        configs_layout.addWidget(use_configs_checkbox)
+        configs_delay_layout = QHBoxLayout()
+        configs_delay_label = QLabel("Delay between configurations from")
+        configs_delay_from = QLineEdit("1")
+        configs_delay_from.setFixedWidth(50)
+        configs_delay_to_label = QLabel("to")
+        configs_delay_to = QLineEdit("5")
+        configs_delay_to.setFixedWidth(50)
+        repeat_count_label = QLabel("repeat count: ")
+        repeat_count = QLineEdit("1")
+        repeat_count.setFixedWidth(50)
+        configs_delay_layout.addWidget(configs_delay_label)
+        configs_delay_layout.addWidget(configs_delay_from)
+        configs_delay_layout.addWidget(configs_delay_to_label)
+        configs_delay_layout.addWidget(configs_delay_to)
+        configs_delay_layout.addWidget(repeat_count_label)
+        configs_delay_layout.addWidget(repeat_count)
+        configs_delay_layout.addStretch()
+        configs_layout.addLayout(configs_delay_layout)
+        layout.addLayout(configs_layout)
+        self.widgets_config['selected_configs_entry'] = selected_configs_entry
+        self.widgets_config['use_configs_checkbox'] = use_configs_checkbox
+        self.widgets_config['delay_from'] = configs_delay_from
+        self.widgets_config['delay_to'] = configs_delay_to
+        self.widgets_config['repeat_count'] = repeat_count
+        self.widgets_tr['select_configs_button'] = select_configs_button
+        self.widgets_tr['use_configs_checkbox'] = use_configs_checkbox
+        self.widgets_tr['save_config_button'] = save_config_button
+        self.widgets_tr['configs_label'] = configs_label
+        self.widgets_tr['delay_from'] = configs_delay_label
+        self.widgets_tr['delay_to'] = configs_delay_to_label
+        self.widgets_tr['repeat_count'] = repeat_count_label
+        use_configs_checkbox.stateChanged.connect(self.on_use_configs_changed)
+
         # starknet_seed_layout = QHBoxLayout()
         # self.starknet_seed_label = QLabel("Starknet seed file:")
         # starknet_seed_layout.addWidget(self.starknet_seed_label)
@@ -458,9 +554,13 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(QSplitter())
 
+        self.projects_frame = QFrame()
+        projects_layout = QVBoxLayout()
+        self.projects_frame.setLayout(projects_layout)
+
         bridges_label = QLabel()
         bridges_label.setFont(bold_font)
-        layout.addWidget(bridges_label)
+        projects_layout.addWidget(bridges_label)
         self.widgets_tr['bridges_label'] = bridges_label
 
         for key in self.bridges:
@@ -492,12 +592,12 @@ class MainWindow(QMainWindow):
             self.bridges[key]['checkbox'] = bridge_checkbox
             self.bridges[key]['min_eth'] = min_eth_selector
             self.bridges[key]['max_eth'] = max_eth_selector
-            layout.addLayout(bridge_layout)
+            projects_layout.addLayout(bridge_layout)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         back_bridges_label = QLabel()
         back_bridges_label.setFont(bold_font)
-        layout.addWidget(back_bridges_label)
+        projects_layout.addWidget(back_bridges_label)
         self.widgets_tr['back_bridges_label'] = back_bridges_label
 
         for key in self.back_bridges:
@@ -529,13 +629,13 @@ class MainWindow(QMainWindow):
             self.back_bridges[key]['checkbox'] = back_bridge_checkbox
             self.back_bridges[key]['min_percent'] = min_percent_selector
             self.back_bridges[key]['max_percent'] = max_percent_selector
-            layout.addLayout(back_bridge_layout)
+            projects_layout.addLayout(back_bridge_layout)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         quests_label = QLabel()
         quests_label.setFont(bold_font)
         self.widgets_tr['quests_label'] = quests_label
-        layout.addWidget(quests_label)
+        projects_layout.addWidget(quests_label)
 
         for key in self.swaps:
             quest_layout = QHBoxLayout()
@@ -563,21 +663,21 @@ class MainWindow(QMainWindow):
             self.swaps[key]['checkbox'] = swap_checkbox
             self.swaps[key]['min_price'] = min_eth_selector
             self.swaps[key]['max_price'] = max_eth_selector
-            layout.addLayout(quest_layout)
+            projects_layout.addLayout(quest_layout)
 
         random_swap_checkbox = QCheckBox()
         self.widgets_tr['random_swap_checkbox'] = random_swap_checkbox
         self.widgets_config['random_swap_checkbox'] = random_swap_checkbox
-        layout.addWidget(random_swap_checkbox)
+        projects_layout.addWidget(random_swap_checkbox)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         backswaps_label = QLabel()
         backswaps_label.setFont(bold_font)
         self.widgets_tr['backswaps_label'] = backswaps_label
-        layout.addWidget(backswaps_label)
+        projects_layout.addWidget(backswaps_label)
 
         backswaps_checkbox = QCheckBox()
-        layout.addWidget(backswaps_checkbox)
+        projects_layout.addWidget(backswaps_checkbox)
         self.widgets_tr['backswaps_checkbox'] = backswaps_checkbox
         self.widgets_config['backswaps_checkbox'] = backswaps_checkbox
         backswaps_layout = QHBoxLayout()
@@ -593,13 +693,13 @@ class MainWindow(QMainWindow):
         backswaps_layout.addWidget(backswaps_count_spinbox)
         backswaps_layout.addWidget(self.widgets_tr['backswaps_usd_label'])
         backswaps_layout.addWidget(backswaps_usd_spinbox)
-        layout.addLayout(backswaps_layout)
+        projects_layout.addLayout(backswaps_layout)
 
-        layout.addWidget(QSplitter())
+        projects_layout.addWidget(QSplitter())
         options_label = QLabel()
         options_label.setFont(bold_font)
         self.widgets_tr['options_label'] = options_label
-        layout.addWidget(options_label)
+        projects_layout.addWidget(options_label)
 
         for option_name in ('wallet_delay', 'project_delay'):
             options_layout = QHBoxLayout()
@@ -625,13 +725,14 @@ class MainWindow(QMainWindow):
             self.widgets_tr[f'{option_name}_max_sec_label'] = max_option_1_label
             self.widgets_config[f'{option_name}_min_sec'] = min_option_1_selector
             self.widgets_config[f'{option_name}_max_sec'] = max_option_1_selector
-            layout.addLayout(options_layout)
+            projects_layout.addLayout(options_layout)
 
         shuffle_checkbox = QCheckBox('Shuffle wallets')
         self.widgets_config['shuffle_checkbox'] = shuffle_checkbox
         self.widgets_tr['shuffle_checkbox'] = shuffle_checkbox
-        layout.addWidget(shuffle_checkbox)
+        projects_layout.addWidget(shuffle_checkbox)
 
+        layout.addWidget(self.projects_frame)
         layout.addWidget(QSplitter())
 
         button_layout = QHBoxLayout()
@@ -708,6 +809,9 @@ class MainWindow(QMainWindow):
 
     def on_start_clicked(self):
         conf = self.get_config(check_enabled_widget=True)
+        self.process_start(conf)
+
+    def process_start(self, conf):
         self.logger.info('START button clicked')
         if not conf['api_key']:
             self.show_error_message(self.messages[self.language]['apikey_error'])
@@ -763,7 +867,15 @@ class MainWindow(QMainWindow):
         self.widgets_tr['start_button'].setDisabled(True)
         self.widgets_tr['pause_button'].setDisabled(False)
         self.widgets_tr['stop_button'].setDisabled(False)
-        self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api, config=conf,
+        configs = {}
+        configs['use'] = self.widgets_config['use_configs_checkbox'].isChecked()
+        configs['delay_from'] = float(self.widgets_config['delay_from'].text().strip())
+        configs['delay_to'] = float(self.widgets_config['delay_to'].text().strip())
+        if configs['use']:
+            configs['repeat_count'] = int(self.widgets_config['repeat_count'].text() or 1)
+            configs['file_names'] = self.config_file_names
+
+        self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api, config=conf, configs=configs,
                                           swaps=self.swaps, bridges=self.bridges, back_bridges=self.back_bridges)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
         # self.worker_thread.logger_signal.connect(self._log)
@@ -797,6 +909,9 @@ class MainWindow(QMainWindow):
         echo_mode = QLineEdit.Password if self.sender().isChecked() else QLineEdit.Normal
         self.widgets_config['api_key'].setEchoMode(echo_mode)
 
+    def on_use_configs_changed(self):
+        self.projects_frame.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
+
     def on_bridge_checkbox_clicked(self):
         for key in self.bridges:
             if self.bridges[key]['checkbox'].isChecked():
@@ -818,8 +933,33 @@ class MainWindow(QMainWindow):
             self.file_name = file_name
             self.logger.debug(f'File selected: {file_name}')
 
+    def save_config_pressed(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getSaveFileName(self, "Save File", "", "All Files(*);;JSON Files(*.json)",
+                                                  options=options)
+        if fileName:
+            cfg = self.get_config()
+            cfg.pop("api_key")
+            cfg.pop("decrypt_wallets_label")
+            cfg.pop("file_name")
+            cfg.pop("selected_configs_entry")
+            to_save = {"gui_config": cfg, "config_type": "additional"}
+            json.dump(to_save, open(fileName, "w", encoding='utf-8'), ensure_ascii=False)
+            self.logger.info("Config has been successfully saved")
+
+    def on_select_configs_clicked(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_name, _ = QFileDialog.getOpenFileNames(self, "Select configs", "", "All Files (*);;JSON Files (*.json)",
+                                                   options=options)
+        if file_name:
+            self.config_file_names = file_name
+            self.logger.debug(f'Config files selected: {" ".join(file_name)}')
+            self.widgets_config['selected_configs_entry'].setText(", ".join(list(map(lambda x: os.path.basename(x), file_name))))
+
     def closeEvent(self, event):
-        self.config.gui_config = self.get_config()
+        self.config.gui_config = self.get_config(check_enabled_widget=True)
         self.config.save(self.CONFIG_FILENAME)
 
     def handle_links(self, url):
@@ -830,7 +970,7 @@ def main():
     app = QApplication(sys.argv)
     # app.setStyle(QStyleFactory.create('Windows'))
     main_window = MainWindow()
-    main_window.setMinimumSize(600, 700)
+    main_window.setMinimumSize(600, 820)
     frame_geometry = main_window.frameGeometry()
     center_point = QDesktopWidget().availableGeometry().center()
     frame_geometry.moveCenter(center_point)
