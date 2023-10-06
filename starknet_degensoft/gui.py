@@ -289,7 +289,7 @@ class MainWindow(QMainWindow):
             "delay_from": "Delay between configurations from",
             "delay_to": "to",
             "repeat_count": "repeat count: ",
-            "use_configs_checkbox": "Use selected configurations"
+            "use_configs_checkbox": "Use selected configurations",
             "gas_limit_checkbox": "Ethereum Gas limit",
         },
         'ru': {
@@ -343,7 +343,7 @@ class MainWindow(QMainWindow):
             "delay_from": "Задержка между конфигурациями от",
             "delay_to": "до",
             "repeat_count": "количество повторений: ",
-            "use_configs_checkbox": "Использовать выбранные конфигурации"
+            "use_configs_checkbox": "Использовать выбранные конфигурации",
             "gas_limit_checkbox": "Ethereum лимит газа",
         }
     }
