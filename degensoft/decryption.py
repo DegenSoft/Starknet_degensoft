@@ -58,29 +58,22 @@ def get_cipher(password):
 
 
 def decrypt_private_key(encrypted_base64_pk, password):
-    print("---")
     is_utf8 = encrypted_base64_pk.startswith("UTF8")
     if is_utf8: encrypted_base64_pk = encrypted_base64_pk[4:]
-    print(encrypted_base64_pk, is_utf8, len(encrypted_base64_pk))
     cipher = get_cipher(password)
     encrypted_pk = base64.b64decode(encrypted_base64_pk)
-    print(encrypted_pk)
     decrypted_unpadded = cipher.decrypt(encrypted_pk)
-    print(decrypted_unpadded)
     try:
         decrypted_bytes = unpad(decrypted_unpadded, 16)
     except Exception:
         decrypted_bytes = decrypted_unpadded.strip(b"\xf0").strip(b"\x0f")
-    print(decrypted_bytes, len(decrypted_bytes))
     if is_utf8:
         decrypted_hex = decrypted_bytes.decode('utf-8')
     else:
         decrypted_hex = binascii.hexlify(decrypted_bytes).decode()
-        print(decrypted_hex, len(decrypted_hex))
         if len(decrypted_hex) in (66, 42):
             return '0x' + decrypted_hex[2:]
         else:
             return '0x' + decrypted_hex
 
-    print(decrypted_hex)
     return decrypted_hex
