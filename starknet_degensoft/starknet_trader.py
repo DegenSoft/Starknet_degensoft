@@ -491,7 +491,7 @@ class StarknetTrader:
         self.logger.debug(get_explorer_address_url(to_l2_address, explorer_url))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
-            self.starknet_client.wait_for_pending_tx_sync(int(tx_hash, base=16), check_interval=5)
+            self.starknet_client.wait_for_tx_sync(int(tx_hash, base=16), check_interval=5)
         return tx_hash
 
     @action_decorator('bridge')
@@ -516,5 +516,5 @@ class StarknetTrader:
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
-            self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5)
+            self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=5)
         return hex(res.transaction_hash)
