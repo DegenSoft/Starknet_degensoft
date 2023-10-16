@@ -18,7 +18,7 @@ from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
-from starknet_degensoft.starknet_trader import StarknetTrader
+from starknet_degensoft.starknet_trader import StarknetTrader, TraderThread
 from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
     mask_hex_in_string
 
@@ -55,95 +55,6 @@ def setup_gui_loging(logger, callback, formatter=log_formatter):
     formatter = log_formatter
     handler.setFormatter(formatter)
     logger.addHandler(handler)
-
-
-class TraderThread(QThread):
-    task_completed = pyqtSignal()
-    # logger_signal = pyqtSignal(str)
-
-    def __init__(self, api, trader, config, swaps, bridges, back_bridges, configs={}):
-        super().__init__()
-        self.api = api
-        self.trader = trader
-        self.config = config
-        self.swaps = swaps
-        self.bridges = bridges
-        self.back_bridges = back_bridges
-        self.paused = False
-        self.configs = configs
-        self.logger = logging.getLogger('starknet')
-        # self.handler = QtSignalLogHandler(signal=self.logger_signal)
-        # self.handler.setFormatter(log_formatter)
-        # self.logger.addHandler(self.handler)
-
-    def run(self):
-        use_configs = self.configs['use']
-        if use_configs:
-            repeat_count = self.configs['repeat_count']
-            for counter in range(1, repeat_count + 1):
-                for config_fn in self.configs['file_names']:
-                    loaded_conf = json.load(open(config_fn, "r", encoding='utf-8'))
-                    if loaded_conf.get("config_type", "") != "additional":
-                        self.logger.error(f"Invalid config: {os.path.basename(config_fn)}")
-                        continue
-                    self.config.update(loaded_conf['gui_config'])
-                    self.logger.info(f"Started config: {os.path.basename(config_fn)} [{counter}/{repeat_count}]")
-                    self.process_run()
-                    if self.trader.stopped:
-                        return self.task_completed.emit()
-                    self.trader.process_pause(random.randint(self.configs['delay_from'], self.configs['delay_to']))
-                    if self.trader.stopped:
-                        return self.task_completed.emit()
-        else:
-            self.process_run()
-        self.task_completed.emit()
-
-    def process_run(self):
-        wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
-        swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
-        projects = []
-        for key in self.swaps:
-            if self.config[f'swap_{key}_checkbox']:
-                projects.append(dict(cls=self.swaps[key]['cls'],
-                                     amount_usd=(self.config[f'min_price_{key}_selector'],
-                                                 self.config[f'max_price_{key}_selector'])))
-        for key in random.sample(list(self.bridges), len(self.bridges)):
-            if self.config[f'bridge_{key}_checkbox']:
-                bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
-                bridge_amount = (self.config[f'min_eth_{key}_selector'], self.config[f'max_eth_{key}_selector'])
-                projects.append(dict(cls=self.bridges[key]['cls'], network=bridge_network_name,
-                                     amount=bridge_amount, is_back=False))
-        for key in random.sample(list(self.back_bridges), len(self.back_bridges)):
-            if self.config[f'back_bridge_{key}_checkbox']:
-                back_bridge_network_name = self.back_bridges[key]['networks'][self.config[f'back_bridge_{key}_network']]
-                back_bridge_percent = (self.config[f'min_percent_{key}_selector'],
-                                       self.config[f'max_percent_{key}_selector'])
-                projects.append(dict(cls=self.back_bridges[key]['cls'], network=back_bridge_network_name,
-                                     amount_percent=back_bridge_percent, is_back=True))
-        if self.config['backswaps_checkbox']:
-            projects.append(dict(cls=None,
-                                 count=self.config['backswaps_count_spinbox'],
-                                 amount_usd=self.config['backswaps_usd_spinbox']))
-        self.trader.run(projects=projects, wallet_delay=wallet_delay,
-                        project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
-                        random_swap_project=self.config['random_swap_checkbox'],
-                        api=self.api,
-                        gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None)
-        self.task_completed.emit()
-        # self.logger.removeHandler(self.handler)
-
-    def pause(self):
-        self.trader.pause()
-        self.paused = True
-
-    def stop(self):
-        self.trader.stop()
-        # self.stopped = True
-
-    def resume(self):
-        self.trader.resume()
-        self.paused = False
-
 
 class MyQTextEdit(QTextEdit):
 
@@ -279,6 +190,7 @@ class MainWindow(QMainWindow):
             'minmax_usd_error': 'Minimum USD$ amount must be non-zero and less then Maximum USD$ amount',
             'minmax_delay_error': 'Minimum delay must be less or equal maximum delay',
             'decryption_error': 'Decryption error or wrong password',
+            'configs_error': 'You must select config files',
             'password_dialog_title': 'Enter Password',
             'password_dialog_message': 'Enter password to decrypt wallets file:',
             "decrypt_wallets_label": "Decrypt wallets",
@@ -333,6 +245,7 @@ class MainWindow(QMainWindow):
             'minmax_usd_error': 'Минимальная USD$ сумма должна быть больше нуля и меньше максимальной USD$ суммы',
             'minmax_delay_error': 'Минимальная задержка должна быть меньше или равна максимальной задержке',
             'decryption_error': 'Ошибка расшифровки или неверный пароль',
+            'configs_error': 'Вы должны выбрать файлы конфигураций',
             'password_dialog_title': 'Введите Пароль',
             'password_dialog_message': 'Введите пароль, что бы расшифровать файл кошельков:',
             "decrypt_wallets_label": "Расшифровать кошельки",
@@ -826,6 +739,9 @@ class MainWindow(QMainWindow):
             return
         if not conf['file_name']:
             self.show_error_message(self.messages[self.language]['file_error'])
+            return
+        if conf['use_configs_checkbox'] and not conf['selected_configs_entry']:
+            self.show_error_message(self.messages[self.language]['configs_error'])
             return
         for key in self.bridges:
             if conf[f'bridge_{key}_checkbox'] and not (

@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
-import csv
+import json
 import logging
+import os
 import random
 import time
 from collections import namedtuple
 
 import requests
+from PyQt5.QtCore import QThread, pyqtSignal
 from eth_account import Account as EthereumAccount
 from starknet_py.net.client_errors import ClientError
 from starknet_py.net.models.chains import StarknetChainId
@@ -20,7 +22,6 @@ from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
 from starknet_degensoft.utils import random_float, get_explorer_address_url
-
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
 
@@ -78,6 +79,94 @@ def action_decorator(action):
 def get_price(symbol: str):
     json_data = requests.get(f'https://www.binance.com/api/v3/ticker/price?symbol={symbol.upper()}USDT').json()
     return float(json_data['price'])
+
+
+class TraderThread(QThread):
+    task_completed = pyqtSignal()
+    # logger_signal = pyqtSignal(str)
+
+    def __init__(self, api, trader, config, swaps, bridges, back_bridges, configs=None):
+        super().__init__()
+        self.api = api
+        self.trader = trader
+        self.config = config
+        self.swaps = swaps
+        self.bridges = bridges
+        self.back_bridges = back_bridges
+        self.paused = False
+        self.configs = configs if configs else {}
+        self.logger = logging.getLogger('starknet')
+        # self.handler = QtSignalLogHandler(signal=self.logger_signal)
+        # self.handler.setFormatter(log_formatter)
+        # self.logger.addHandler(self.handler)
+
+    def run(self):
+        use_configs = self.configs['use']
+        if use_configs:
+            repeat_count = self.configs['repeat_count']
+            for counter in range(1, repeat_count + 1):
+                for config_fn in self.configs['file_names']:
+                    loaded_conf = json.load(open(config_fn, "r", encoding='utf-8'))
+                    if loaded_conf.get("config_type", "") != "additional":
+                        self.logger.error(f"Invalid config: {os.path.basename(config_fn)}")
+                        continue
+                    self.config.update(loaded_conf['gui_config'])
+                    self.logger.info(f"Started config: {os.path.basename(config_fn)} [{counter}/{repeat_count}]")
+                    self.process_run()
+                    if self.trader.stopped:
+                        break
+                    self.trader.process_pause(random.randint(self.configs['delay_from'], self.configs['delay_to']))
+                    if self.trader.stopped:
+                        break
+        else:
+            self.process_run()
+        self.task_completed.emit()
+
+    def process_run(self):
+        wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
+        swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
+        projects = []
+        for key in self.swaps:
+            if self.config[f'swap_{key}_checkbox']:
+                projects.append(dict(cls=self.swaps[key]['cls'],
+                                     amount_usd=(self.config[f'min_price_{key}_selector'],
+                                                 self.config[f'max_price_{key}_selector'])))
+        for key in random.sample(list(self.bridges), len(self.bridges)):
+            if self.config[f'bridge_{key}_checkbox']:
+                bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
+                bridge_amount = (self.config[f'min_eth_{key}_selector'], self.config[f'max_eth_{key}_selector'])
+                projects.append(dict(cls=self.bridges[key]['cls'], network=bridge_network_name,
+                                     amount=bridge_amount, is_back=False))
+        for key in random.sample(list(self.back_bridges), len(self.back_bridges)):
+            if self.config[f'back_bridge_{key}_checkbox']:
+                back_bridge_network_name = self.back_bridges[key]['networks'][self.config[f'back_bridge_{key}_network']]
+                back_bridge_percent = (self.config[f'min_percent_{key}_selector'],
+                                       self.config[f'max_percent_{key}_selector'])
+                projects.append(dict(cls=self.back_bridges[key]['cls'], network=back_bridge_network_name,
+                                     amount_percent=back_bridge_percent, is_back=True))
+        if self.config['backswaps_checkbox']:
+            projects.append(dict(cls=None,
+                                 count=self.config['backswaps_count_spinbox'],
+                                 amount_usd=self.config['backswaps_usd_spinbox']))
+        self.trader.run(projects=projects, wallet_delay=wallet_delay,
+                        project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
+                        random_swap_project=self.config['random_swap_checkbox'],
+                        api=self.api,
+                        gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None)
+        # self.task_completed.emit()
+        # self.logger.removeHandler(self.handler)
+
+    def pause(self):
+        self.trader.pause()
+        self.paused = True
+
+    def stop(self):
+        self.trader.stop()
+        # self.stopped = True
+
+    def resume(self):
+        self.trader.resume()
+        self.paused = False
 
 
 class StarknetTrader:
@@ -402,7 +491,7 @@ class StarknetTrader:
         self.logger.debug(get_explorer_address_url(to_l2_address, explorer_url))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
-            self.starknet_client.wait_for_pending_tx_sync(int(tx_hash, base=16), check_interval=5)
+            self.starknet_client.wait_for_tx_sync(int(tx_hash, base=16), check_interval=5)
         return tx_hash
 
     @action_decorator('bridge')
@@ -427,5 +516,5 @@ class StarknetTrader:
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
-            self.starknet_client.wait_for_pending_tx_sync(res.transaction_hash, check_interval=5)
+            self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=5)
         return hex(res.transaction_hash)

@@ -7,6 +7,7 @@ from typing import Union
 import requests
 from starknet_py.contract import Contract
 from starknet_py.net.account.account import Account as StarknetAccount
+from starknet_py.net.models import StarknetChainId
 from web3 import Web3
 
 from starknet_degensoft.api import Account
@@ -18,8 +19,8 @@ class LayerswapBridge:
         5: 'ETHEREUM_GOERLI',
         42170: 'ARBITRUMNOVA_MAINNET',
         42161: 'ARBITRUM_MAINNET',
-        'StarknetChainId.TESTNET': 'STARKNET_GOERLI',
-        'StarknetChainId.MAINNET': 'STARKNET_MAINNET',
+        StarknetChainId.MAINNET: 'STARKNET_MAINNET',
+        StarknetChainId.TESTNET: 'STARKNET_GOERLI',
     }
 
     NETWORK_TO_LS_NAME = {
@@ -94,8 +95,11 @@ class LayerswapBridge:
         if not is_starknet:
             rd = requests.post(f'{self.BRIDGE_API_URL}/api/deposit_addresses/{from_network}', headers=auth_header)
         else:
-            rd = requests.get(f'{self.BRIDGE_API_URL}/api/deposit_addresses/{from_network}', params={'source': 1},
-                              headers=auth_header)
+            # hardcoded starknet deposit contract address (only for mainnet)
+            return '0x19252b1deef483477c4d30cfcc3e5ed9c82fafea44669c182a45a01b4fdb97a'
+            # rd = requests.get(f'{self.BRIDGE_API_URL}/api/deposit_addresses/{from_network}',
+            #                   params={'source': 1},
+            #                   headers=auth_header)
         # print("get_depo_address", rd.text)
         rd_data = rd.json()
         if rd_data['error']:
@@ -156,7 +160,7 @@ class LayerswapBridge:
             is_starknet = False
             from_address = account.address
         else:
-            chain_id = str(account._chain_id)
+            chain_id = account._chain_id
             balance = account.get_balance_sync()
             is_starknet = True
             from_address = hex(account.address)
@@ -196,10 +200,10 @@ class LayerswapBridge:
         if wait_for_income_tx:
             while True:
                 swap_data = self._get_swap_status(swap_id, auth_header)
-                # print(swap_data)
+                print(swap_data)
                 if swap_data['data']['status'] == 'completed':
                     break
-                time.sleep(60)
+                time.sleep(5)
         return tx_hash
 
     def _get_transfer_starknet_invoke(self, account: StarknetAccount, to_address, amount, sequence_number):
@@ -214,7 +218,6 @@ class LayerswapBridge:
     def _transfer_starknet(self, account: StarknetAccount, to_address, amount, sequence_number):
         invoke = self._get_transfer_starknet_invoke(account, to_address, amount, sequence_number)
         tx = account.client.send_transaction_sync(invoke)
-        # print(hex(tx.transaction_hash))
         return tx
 
     def get_starknet_transfer_fee(self, account, address):

@@ -43,78 +43,7 @@ class Account(BaseAccount):
 
 
 @add_sync_methods
-class ClientMixin:
-
-    is_stopped = False
-
-    async def wait_for_pending_tx(
-            self,
-            tx_hash: Hash,
-            wait_for_accept: Optional[bool] = False,
-            check_interval=5,
-    ) -> Tuple[Union[int, None], TransactionStatus]:
-        if check_interval <= 0:
-            raise ValueError("Argument check_interval has to be greater than 0.")
-
-        first_run = True
-        try:
-            # ugly code for JSON RPC nodes
-            while True:
-                if self.is_stopped:
-                    return None, TransactionStatus.NOT_RECEIVED
-                _attempt = 0
-                while True:
-                    if self.is_stopped:
-                        return None, TransactionStatus.NOT_RECEIVED
-                    try:
-                        _attempt += 1
-                        result = await self.get_transaction_receipt(tx_hash=tx_hash)
-                        break
-                    except ClientError as ex:
-                        if ex.code == 25:# and _attempt <= 100:
-                            # print(f'attempt {_attempt} failed. try again in {check_interval} sec.')
-                            await asyncio.sleep(check_interval)
-                            continue
-                        else:
-                            raise ex
-                    except ValidationError as ex:
-                        return None, TransactionStatus.PENDING
-                        # print(f'ValidationError, try again: {ex}')
-                        # await asyncio.sleep(check_interval)
-                        # continue
-                status = result.status
-
-                if status in (
-                        TransactionStatus.ACCEPTED_ON_L1,
-                        TransactionStatus.ACCEPTED_ON_L2,
-                ):
-                    assert result.block_number is not None
-                    return result.block_number, status
-                if status == TransactionStatus.PENDING:
-                    if not wait_for_accept:
-                        # if result.block_number is not None:
-                        return result.block_number, status
-                elif status == TransactionStatus.REJECTED:
-                    raise TransactionRejectedError(
-                        message=result.rejection_reason,
-                    )
-                elif status == TransactionStatus.NOT_RECEIVED:
-                    if not first_run:
-                        raise TransactionNotReceivedError()
-                elif status != TransactionStatus.RECEIVED:
-                    # This will never get executed with current possible transactions statuses
-                    raise TransactionFailedError(
-                        message=result.rejection_reason,
-                    )
-
-                first_run = False
-                await asyncio.sleep(check_interval)
-        except asyncio.CancelledError as exc:
-            raise TransactionNotReceivedError from exc
-
-
-@add_sync_methods
-class FullNodeClient(ClientMixin, BaseFullNodeClient):
+class FullNodeClient(BaseFullNodeClient):
     async def estimate_fee(
             self,
             tx: AccountTransaction,
@@ -142,5 +71,5 @@ class FullNodeClient(ClientMixin, BaseFullNodeClient):
 
 
 @add_sync_methods
-class GatewayClient(ClientMixin, BaseGatewayClient):
+class GatewayClient(BaseGatewayClient):
     ...
