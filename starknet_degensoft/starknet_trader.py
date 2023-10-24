@@ -110,6 +110,11 @@ class TraderThread(QThread):
                     if loaded_conf.get("config_type", "") != "additional":
                         self.logger.error(f"Invalid config: {os.path.basename(config_fn)}")
                         continue
+                    for key in ('gas_limit_spinner', 'gas_limit_checkbox'):
+                        try:
+                            loaded_conf['gui_config'].pop(key)
+                        except KeyError:
+                            pass
                     self.config.update(loaded_conf['gui_config'])
                     self.logger.info(f"Started config: {os.path.basename(config_fn)} [{counter}/{repeat_count}]")
                     self.process_run()

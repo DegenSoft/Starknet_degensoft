@@ -856,13 +856,12 @@ class MainWindow(QMainWindow):
                                                   options=options)
         if fileName:
             cfg = self.get_config()
-            cfg.pop("api_key")
-            cfg.pop("decrypt_wallets_label")
-            cfg.pop("file_name")
-            cfg.pop("selected_configs_entry")
-            to_save = {"gui_config": cfg, "config_type": "additional"}
-            json.dump(to_save, open(fileName, "w", encoding='utf-8'), ensure_ascii=False)
-            self.logger.info("Config has been successfully saved")
+            for key in ('api_key', 'decrypt_wallets_label', 'file_name', 'selected_configs_entry',
+                        'gas_limit_spinner', 'gas_limit_checkbox'):
+                cfg.pop(key)
+            to_save = {'gui_config': cfg, 'config_type': 'additional'}
+            json.dump(to_save, open(fileName, 'w', encoding='utf-8'), ensure_ascii=False)
+            self.logger.info('Config has been successfully saved')
 
     def on_select_configs_clicked(self):
         options = QFileDialog.Options()
