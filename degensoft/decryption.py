@@ -40,20 +40,6 @@ def is_base64(s):
         return False
 
 
-# def decrypt_gpg_file(file_name, password):
-#     gpg = gnupg.GPG()
-#     with open(file_name, 'rb') as f:
-#         encrypted_data = f.read()
-#     decrypted_data = gpg.decrypt(encrypted_data, passphrase=password)
-#     if decrypted_data.ok:
-#         try:
-#             return io.StringIO(decrypted_data.wallets.decode('utf-8'))
-#         except UnicodeDecodeError:
-#             return io.BytesIO(decrypted_data.wallets)
-#     else:
-#         raise RuntimeError('decryption failed')
-
-
 def get_cipher(password):
     salt = hashlib.sha256(password.encode('utf-8')).digest()
     key = PBKDF2(password.encode('utf-8'), salt, dkLen=32, count=1)
