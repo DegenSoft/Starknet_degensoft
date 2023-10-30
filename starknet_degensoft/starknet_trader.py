@@ -16,6 +16,7 @@ from web3 import Web3
 
 from starknet_degensoft.api import Account, Node
 from starknet_degensoft.api_client2 import DegenSoftApiClient, DegenSoftApiError
+from starknet_degensoft.argentx_updater import ArgentXUpdater
 from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
@@ -282,6 +283,7 @@ class StarknetTrader:
             if self.stopped:
                 break
             starknet_address = hex(account.starknet_account.address)
+            is_deployed = None
             for attempt_ in range(3):
                 try:
                     balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
@@ -289,12 +291,16 @@ class StarknetTrader:
                     self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} ({balance:.4f} ETH)')
                     break
                 except Exception as ex:
-                    is_deployed = None
                     self.logger.error(ex)
                     self.logger.info('retry')
             if is_deployed is None:
                 self.logger.info(f'Starknet Account {hex(account.starknet_account.address)}')
                 self.logger.error('could not get account balance and deploy status, probably RPC error')
+                continue
+            try:
+                ArgentXUpdater(account.starknet_account, logger=self.logger).auto_update_sync()
+            except Exception as ex:
+                self.logger.error(ex)
                 continue
             # choosing random SWAP project and uniq order
             uniq_projects = []
