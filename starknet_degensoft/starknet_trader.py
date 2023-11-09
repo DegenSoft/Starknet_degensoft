@@ -111,7 +111,9 @@ class TraderThread(QThread):
                     if loaded_conf.get("config_type", "") != "additional":
                         self.logger.error(f"Invalid config: {os.path.basename(config_fn)}")
                         continue
-                    for key in ('gas_limit_spinner', 'gas_limit_checkbox'):
+                    for key in ('gas_limit_spinner', 'gas_limit_checkbox', 'shuffle_checkbox',
+                                'wallet_delay_min_sec', 'wallet_delay_max_sec',
+                                'project_delay_min_sec', 'project_delay_max_sec'):
                         try:
                             loaded_conf['gui_config'].pop(key)
                         except KeyError:

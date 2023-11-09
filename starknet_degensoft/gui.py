@@ -1,16 +1,16 @@
 import json
 import logging
 import os
-import random
 import sys
 import time
 
 from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
-from PyQt5.QtCore import QThread, pyqtSignal, QMetaObject
+from PyQt5.QtCore import pyqtSignal, QMetaObject
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
-    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, QFrame
+    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, \
+    QScrollArea
 
 from degensoft.filereader import UniversalFileReader
 from starknet_degensoft.api_client2 import DegenSoftApiClient
@@ -457,19 +457,21 @@ class MainWindow(QMainWindow):
         self.widgets_tr['repeat_count'] = repeat_count_label
         use_configs_checkbox.stateChanged.connect(self.on_use_configs_changed)
 
-        # starknet_seed_layout = QHBoxLayout()
-        # self.starknet_seed_label = QLabel("Starknet seed file:")
-        # starknet_seed_layout.addWidget(self.starknet_seed_label)
-        # self.select_starknet_button = QPushButton("Select File")
-        # self.select_starknet_button.clicked.connect(self.on_open_file_clicked)
-        # starknet_seed_layout.addWidget(self.select_starknet_button)
-        # layout.addLayout(starknet_seed_layout)
-
         layout.addWidget(QSplitter())
 
-        self.projects_frame = QFrame()
+        self.hide_widget = QWidget()
+        self.hide_widget_layout = QVBoxLayout()
+        self.hide_widget_layout.setContentsMargins(0, 0, 0, 0)
+        self.hide_widget.setLayout(self.hide_widget_layout)
+        layout.addWidget(self.hide_widget)
+
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setWidgetResizable(True)
+
+        self.scroll_area_widget = QWidget()
         projects_layout = QVBoxLayout()
-        self.projects_frame.setLayout(projects_layout)
+        projects_layout.setContentsMargins(5, 5, 5, 5)
+        self.scroll_area_widget.setLayout(projects_layout)
 
         bridges_label = QLabel()
         bridges_label.setFont(bold_font)
@@ -608,22 +610,24 @@ class MainWindow(QMainWindow):
         backswaps_layout.addWidget(backswaps_usd_spinbox)
         projects_layout.addLayout(backswaps_layout)
 
-        projects_layout.addWidget(QSplitter())
+        self.scroll_area.setWidget(self.scroll_area_widget)
+        self.hide_widget_layout.addWidget(self.scroll_area)
+
         options_label = QLabel()
         options_label.setFont(bold_font)
         self.widgets_tr['options_label'] = options_label
-        projects_layout.addWidget(options_label)
+        layout.addWidget(options_label)
 
         for option_name in ('wallet_delay', 'project_delay'):
             options_layout = QHBoxLayout()
             options_1_label = QLabel()
             min_option_1_label = QLabel()
             min_option_1_selector = QSpinBox()
-            min_option_1_selector.setRange(0, 10000)
+            min_option_1_selector.setRange(0, 100000)
             # min_option_1_selector.setValue(60)
             max_option_1_label = QLabel()
             max_option_1_selector = QSpinBox()
-            max_option_1_selector.setRange(0, 10000)
+            max_option_1_selector.setRange(0, 100000)
             # max_option_1_selector.setValue(120)
             options_layout.addWidget(options_1_label)
             options_layout.addWidget(min_option_1_label)
@@ -638,14 +642,13 @@ class MainWindow(QMainWindow):
             self.widgets_tr[f'{option_name}_max_sec_label'] = max_option_1_label
             self.widgets_config[f'{option_name}_min_sec'] = min_option_1_selector
             self.widgets_config[f'{option_name}_max_sec'] = max_option_1_selector
-            projects_layout.addLayout(options_layout)
+            layout.addLayout(options_layout)
 
         shuffle_checkbox = QCheckBox('Shuffle wallets')
         self.widgets_config['shuffle_checkbox'] = shuffle_checkbox
         self.widgets_tr['shuffle_checkbox'] = shuffle_checkbox
-        projects_layout.addWidget(shuffle_checkbox)
+        layout.addWidget(shuffle_checkbox)
 
-        layout.addWidget(self.projects_frame)
         layout.addWidget(QSplitter())
 
         button_layout = QHBoxLayout()
@@ -826,7 +829,7 @@ class MainWindow(QMainWindow):
         self.widgets_config['api_key'].setEchoMode(echo_mode)
 
     def on_use_configs_changed(self):
-        self.projects_frame.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
+        self.hide_widget.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
 
     def on_bridge_checkbox_clicked(self):
         for key in self.bridges:
@@ -857,7 +860,9 @@ class MainWindow(QMainWindow):
         if fileName:
             cfg = self.get_config()
             for key in ('api_key', 'decrypt_wallets_label', 'file_name', 'selected_configs_entry',
-                        'gas_limit_spinner', 'gas_limit_checkbox'):
+                        'gas_limit_spinner', 'gas_limit_checkbox', 'shuffle_checkbox',
+                        'wallet_delay_min_sec', 'wallet_delay_max_sec',
+                        'project_delay_min_sec', 'project_delay_max_sec'):
                 cfg.pop(key)
             to_save = {'gui_config': cfg, 'config_type': 'additional'}
             json.dump(to_save, open(fileName, 'w', encoding='utf-8'), ensure_ascii=False)
@@ -885,7 +890,8 @@ def main():
     app = QApplication(sys.argv)
     # app.setStyle(QStyleFactory.create('Windows'))
     main_window = MainWindow()
-    main_window.setMinimumSize(600, 820)
+    main_window.setMinimumSize(650, 600)
+    main_window.resize(650, 700)
     frame_geometry = main_window.frameGeometry()
     center_point = QDesktopWidget().availableGeometry().center()
     frame_geometry.moveCenter(center_point)
