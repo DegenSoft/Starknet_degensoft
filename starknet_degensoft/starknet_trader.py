@@ -255,7 +255,11 @@ class StarknetTrader:
 
     def wait_for_gas(self, max_gwei):
         while True:
-            gwei = Web3.from_wei(self.ethereum_node.gas_price, 'gwei')
+            try:
+                gwei = Web3.from_wei(self.ethereum_node.gas_price, 'gwei')
+            except Exception as ex:
+                self.logger.error(ex)
+                continue
             if gwei < max_gwei:
                 self.logger.debug(f'Gas is {gwei} gwei')
                 break
