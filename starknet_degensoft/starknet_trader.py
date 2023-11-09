@@ -259,6 +259,7 @@ class StarknetTrader:
                 gwei = Web3.from_wei(self.ethereum_node.gas_price, 'gwei')
             except Exception as ex:
                 self.logger.error(ex)
+                self.process_pause(3)
                 continue
             if gwei < max_gwei:
                 self.logger.debug(f'Gas is {gwei} gwei')
