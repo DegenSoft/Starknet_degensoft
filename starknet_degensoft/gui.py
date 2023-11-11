@@ -9,8 +9,8 @@ from PyQt5.QtCore import pyqtSignal, QMetaObject
 from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
-    QSplitter, QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, \
-    QScrollArea
+    QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, \
+    QTabWidget, QSpacerItem, QSizePolicy
 
 from degensoft.filereader import UniversalFileReader
 from starknet_degensoft.api_client2 import DegenSoftApiClient
@@ -203,6 +203,10 @@ class MainWindow(QMainWindow):
             "repeat_count": "repeat count: ",
             "use_configs_checkbox": "Use selected configurations",
             "gas_limit_checkbox": "Ethereum Gas limit",
+            "settings_tab": "Settings",
+            "projects_tab": "Projects",
+            "bridges_tab": "Bridges",
+            "logs_tab": "Logs",
         },
         'ru': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -258,6 +262,10 @@ class MainWindow(QMainWindow):
             "repeat_count": "количество повторений: ",
             "use_configs_checkbox": "Использовать выбранные конфигурации",
             "gas_limit_checkbox": "Ethereum лимит газа",
+            "settings_tab": "Настройки",
+            "projects_tab": "Проекты",
+            "bridges_tab": "Мосты",
+            "logs_tab": "Логи",
         }
     }
 
@@ -334,7 +342,25 @@ class MainWindow(QMainWindow):
         return gui_config
 
     def init_ui(self):
-        layout = QVBoxLayout()
+        main_layout = QVBoxLayout()
+        self.tab_widget = QTabWidget()
+
+        settings_tab = QWidget()
+        logs_tab = QWidget()
+        projects_tab = QWidget()
+        bridges_tab = QWidget()
+        self.projects_tab = projects_tab
+        self.bridges_tab = bridges_tab
+
+        projects_layout = QVBoxLayout()
+        projects_tab.setLayout(projects_layout)
+        bridges_tab_layout = QVBoxLayout()
+        bridges_tab.setLayout(bridges_tab_layout)
+        settings_layout = QVBoxLayout()
+        settings_tab.setLayout(settings_layout)
+        log_layout = QVBoxLayout()
+        logs_tab.setLayout(log_layout)
+
         bold_font = QFont()
         bold_font.setBold(True)
 
@@ -346,7 +372,7 @@ class MainWindow(QMainWindow):
         language_selector.addItem("Русский")
         language_selector.currentIndexChanged.connect(self.change_language)
         language_layout.addWidget(language_selector)
-        layout.addLayout(language_layout)
+        settings_layout.addLayout(language_layout)
         language_selector.setCurrentIndex(1)
         self.widgets_tr['language_label'] = language_label
         self.widgets_config['language_selector'] = language_selector
@@ -354,16 +380,14 @@ class MainWindow(QMainWindow):
         api_key_layout = QHBoxLayout()
         api_key_label = QLabel()
         api_key_label.setOpenExternalLinks(True)
-        # api_key_layout.addWidget(api_key_label)
-        layout.addWidget(api_key_label)
+        settings_layout.addWidget(api_key_label)
         api_key_field = QLineEdit()
-        # api_key_field.setText()
         api_key_field.setEchoMode(QLineEdit.Password)
         api_key_checkbox = QCheckBox()
         api_key_checkbox.setChecked(True)
         api_key_layout.addWidget(api_key_field)
         api_key_layout.addWidget(api_key_checkbox)
-        layout.addLayout(api_key_layout)
+        settings_layout.addLayout(api_key_layout)
         self.widgets_tr['api_key_label'] = api_key_label
         self.widgets_config['api_key'] = api_key_field
         self.widgets_tr['api_key_checkbox'] = api_key_checkbox
@@ -371,20 +395,17 @@ class MainWindow(QMainWindow):
         self.widgets_config['api_key_checkbox'] = api_key_checkbox
 
         private_keys_layout = QHBoxLayout()
-        # private_keys_label = QLabel(self.tr("Ethereum private keys file:"))
-        # private_keys_layout.addWidget(private_keys_label)
         select_file_button = QPushButton()
         select_file_button.clicked.connect(self.on_open_file_clicked)
         private_keys_layout.addWidget(select_file_button)
-        layout.addLayout(private_keys_layout)
-        # self.widgets_tr['private_keys_label'] = private_keys_label
+        settings_layout.addLayout(private_keys_layout)
         self.widgets_tr['select_file_button'] = select_file_button
 
         decrypt_layout = QHBoxLayout()
         decrypt_checkbox = QCheckBox("Decrypt wallets")
         decrypt_checkbox.setChecked(True)
         decrypt_layout.addWidget(decrypt_checkbox)
-        layout.addLayout(decrypt_layout)
+        settings_layout.addLayout(decrypt_layout)
         self.widgets_tr['decrypt_wallets_label'] = decrypt_checkbox
         self.widgets_config['decrypt_wallets_label'] = decrypt_checkbox
 
@@ -400,12 +421,12 @@ class MainWindow(QMainWindow):
         self.widgets_config['gas_limit_spinner'] = gas_limit_spinner
         self.widgets_config['gas_limit_checkbox'] = gas_limit_checkbox
         self.widgets_tr['gas_limit_checkbox'] = gas_limit_checkbox
-        layout.addLayout(gas_limit_layout)
+        settings_layout.addLayout(gas_limit_layout)
 
         mh = 22
         configs_label = QLabel()
         configs_label.setFont(bold_font)
-        layout.addWidget(configs_label)
+        settings_layout.addWidget(configs_label)
         configs_layout = QVBoxLayout()
         save_config_button = QPushButton()
         save_config_button.setMinimumHeight(mh)
@@ -442,7 +463,7 @@ class MainWindow(QMainWindow):
         configs_delay_layout.addWidget(repeat_count)
         configs_delay_layout.addStretch()
         configs_layout.addLayout(configs_delay_layout)
-        layout.addLayout(configs_layout)
+        settings_layout.addLayout(configs_layout)
         self.widgets_config['selected_configs_entry'] = selected_configs_entry
         self.widgets_config['use_configs_checkbox'] = use_configs_checkbox
         self.widgets_config['delay_from'] = configs_delay_from
@@ -457,47 +478,50 @@ class MainWindow(QMainWindow):
         self.widgets_tr['repeat_count'] = repeat_count_label
         use_configs_checkbox.stateChanged.connect(self.on_use_configs_changed)
 
-        layout.addWidget(QSplitter())
+        # projects_layout.addWidget(QSplitter())
 
-        self.hide_widget = QWidget()
-        self.hide_widget_layout = QVBoxLayout()
-        self.hide_widget_layout.setContentsMargins(0, 0, 0, 0)
-        self.hide_widget.setLayout(self.hide_widget_layout)
-        layout.addWidget(self.hide_widget)
+        # self.hide_widget = QWidget()
+        # self.hide_widget_layout = QVBoxLayout()
+        # self.hide_widget_layout.setContentsMargins(0, 0, 0, 0)
+        # self.hide_widget.setLayout(self.hide_widget_layout)
+        # projects_layout.addWidget(self.hide_widget)
 
-        self.scroll_area = QScrollArea()
-        self.scroll_area.setWidgetResizable(True)
+        # self.scroll_area = QScrollArea()
+        # self.scroll_area.setWidgetResizable(True)
 
-        self.scroll_area_widget = QWidget()
-        projects_layout = QVBoxLayout()
-        projects_layout.setContentsMargins(5, 5, 5, 5)
-        self.scroll_area_widget.setLayout(projects_layout)
+        # self.scroll_area_widget = QWidget()
+        # project_widget = QWidget()
+        # projects_layout = QVBoxLayout()
+        # projects_layout.setContentsMargins(5, 5, 5, 5)
+        # projects_layout.setContentsMargins(0, 0, 0, 0)
+        # project_widget.setLayout(projects_layout)
+        # self.scroll_area_widget.setLayout(projects_layout)
 
         bridges_label = QLabel()
         bridges_label.setFont(bold_font)
-        projects_layout.addWidget(bridges_label)
+        bridges_tab_layout.addWidget(bridges_label)
         self.widgets_tr['bridges_label'] = bridges_label
 
         for key in self.bridges:
-            bridge_layout = QHBoxLayout()
+            bridges_layout = QHBoxLayout()
             bridge_checkbox = QCheckBox(self.bridges[key]['name'])
             # bridge_checkbox.setChecked(False)
             bridge_checkbox.clicked.connect(self.on_bridge_checkbox_clicked)
-            bridge_layout.addWidget(bridge_checkbox)
+            bridges_layout.addWidget(bridge_checkbox)
             bridge_dropdown = QComboBox()
             for network in self.bridges[key]['networks']:
                 bridge_dropdown.addItem(network)
-            bridge_layout.addWidget(bridge_dropdown)
+            bridges_layout.addWidget(bridge_dropdown)
             min_label = QLabel()
             max_label = QLabel()
             min_eth_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
             max_eth_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            bridge_layout.addWidget(min_label)
-            bridge_layout.addWidget(min_eth_selector)
-            bridge_layout.addWidget(max_label)
-            bridge_layout.addWidget(max_eth_selector)
-            bridge_layout.setStretch(0, 1)
-            bridge_layout.setStretch(1, 1)
+            bridges_layout.addWidget(min_label)
+            bridges_layout.addWidget(min_eth_selector)
+            bridges_layout.addWidget(max_label)
+            bridges_layout.addWidget(max_eth_selector)
+            bridges_layout.setStretch(0, 1)
+            bridges_layout.setStretch(1, 1)
             self.widgets_tr[f'min_eth_{key}_label'] = min_label
             self.widgets_tr[f'max_eth_{key}_label'] = max_label
             self.widgets_config[f'bridge_{key}_checkbox'] = bridge_checkbox
@@ -507,12 +531,12 @@ class MainWindow(QMainWindow):
             self.bridges[key]['checkbox'] = bridge_checkbox
             self.bridges[key]['min_eth'] = min_eth_selector
             self.bridges[key]['max_eth'] = max_eth_selector
-            projects_layout.addLayout(bridge_layout)
+            bridges_tab_layout.addLayout(bridges_layout)
 
-        projects_layout.addWidget(QSplitter())
+        # projects_layout.addWidget(QSplitter())
         back_bridges_label = QLabel()
         back_bridges_label.setFont(bold_font)
-        projects_layout.addWidget(back_bridges_label)
+        bridges_tab_layout.addWidget(back_bridges_label)
         self.widgets_tr['back_bridges_label'] = back_bridges_label
 
         for key in self.back_bridges:
@@ -544,9 +568,9 @@ class MainWindow(QMainWindow):
             self.back_bridges[key]['checkbox'] = back_bridge_checkbox
             self.back_bridges[key]['min_percent'] = min_percent_selector
             self.back_bridges[key]['max_percent'] = max_percent_selector
-            projects_layout.addLayout(back_bridge_layout)
+            bridges_tab_layout.addLayout(back_bridge_layout)
 
-        projects_layout.addWidget(QSplitter())
+        # projects_layout.addWidget(QSplitter())
         quests_label = QLabel()
         quests_label.setFont(bold_font)
         self.widgets_tr['quests_label'] = quests_label
@@ -585,7 +609,7 @@ class MainWindow(QMainWindow):
         self.widgets_config['random_swap_checkbox'] = random_swap_checkbox
         projects_layout.addWidget(random_swap_checkbox)
 
-        projects_layout.addWidget(QSplitter())
+        # projects_layout.addWidget(QSplitter())
         backswaps_label = QLabel()
         backswaps_label.setFont(bold_font)
         self.widgets_tr['backswaps_label'] = backswaps_label
@@ -610,13 +634,14 @@ class MainWindow(QMainWindow):
         backswaps_layout.addWidget(backswaps_usd_spinbox)
         projects_layout.addLayout(backswaps_layout)
 
-        self.scroll_area.setWidget(self.scroll_area_widget)
-        self.hide_widget_layout.addWidget(self.scroll_area)
+        # self.scroll_area.setWidget(self.scroll_area_widget)
+        # self.hide_widget_layout.addWidget(self.scroll_area)
+        # self.hide_widget_layout.addWidget(project_widget)
 
         options_label = QLabel()
         options_label.setFont(bold_font)
         self.widgets_tr['options_label'] = options_label
-        layout.addWidget(options_label)
+        settings_layout.addWidget(options_label)
 
         for option_name in ('wallet_delay', 'project_delay'):
             options_layout = QHBoxLayout()
@@ -642,14 +667,15 @@ class MainWindow(QMainWindow):
             self.widgets_tr[f'{option_name}_max_sec_label'] = max_option_1_label
             self.widgets_config[f'{option_name}_min_sec'] = min_option_1_selector
             self.widgets_config[f'{option_name}_max_sec'] = max_option_1_selector
-            layout.addLayout(options_layout)
+            settings_layout.addLayout(options_layout)
 
         shuffle_checkbox = QCheckBox('Shuffle wallets')
         self.widgets_config['shuffle_checkbox'] = shuffle_checkbox
         self.widgets_tr['shuffle_checkbox'] = shuffle_checkbox
-        layout.addWidget(shuffle_checkbox)
+        settings_layout.addWidget(shuffle_checkbox)
+        # projects_layout.addWidget(QSplitter())
 
-        layout.addWidget(QSplitter())
+        main_layout.addWidget(self.tab_widget)
 
         button_layout = QHBoxLayout()
         self.widgets_tr['start_button'] = QPushButton()
@@ -663,20 +689,26 @@ class MainWindow(QMainWindow):
         button_layout.addWidget(self.widgets_tr['start_button'])
         button_layout.addWidget(self.widgets_tr['pause_button'])
         button_layout.addWidget(self.widgets_tr['stop_button'])
-        layout.addLayout(button_layout)
+        main_layout.addLayout(button_layout)
 
         # Add a big text field for logs
-        # self.log_text_edit = MyQTextEdit()
-        # self.log_text_edit = QTextEdit()
         self.log_text_edit = QTextBrowser()
         self.log_text_edit.setOpenLinks(False)
         self.log_text_edit.anchorClicked.connect(self.handle_links)
-
         self.log_text_edit.setReadOnly(True)
-        layout.addWidget(self.log_text_edit)
+        log_layout.addWidget(self.log_text_edit)
+
+        settings_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        projects_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        bridges_tab_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+
+        self.tab_widget.addTab(settings_tab, "Settings")
+        self.tab_widget.addTab(bridges_tab, "Bridges")
+        self.tab_widget.addTab(projects_tab, "Projects")
+        self.tab_widget.addTab(logs_tab, "Logs")
 
         central_widget = QWidget()
-        central_widget.setLayout(layout)
+        central_widget.setLayout(main_layout)
         self.setCentralWidget(central_widget)
 
         # Actions
@@ -697,6 +729,10 @@ class MainWindow(QMainWindow):
 
     def retranslate_ui(self):
         self.setWindowTitle(self.tr(self.messages[self.language].get('window_title')))
+        self.tab_widget.setTabText(0, self.tr(self.messages[self.language].get('settings_tab')))
+        self.tab_widget.setTabText(1, self.tr(self.messages[self.language].get('bridges_tab')))
+        self.tab_widget.setTabText(2, self.tr(self.messages[self.language].get('projects_tab')))
+        self.tab_widget.setTabText(3, self.tr(self.messages[self.language].get('logs_tab')))
         for widget_name in self.widgets_tr:
             if widget_name not in self.messages[self.language]:
                 continue
@@ -829,7 +865,9 @@ class MainWindow(QMainWindow):
         self.widgets_config['api_key'].setEchoMode(echo_mode)
 
     def on_use_configs_changed(self):
-        self.hide_widget.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
+        # self.hide_widget.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
+        self.bridges_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
+        self.projects_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
 
     def on_bridge_checkbox_clicked(self):
         for key in self.bridges:
@@ -891,7 +929,7 @@ def main():
     # app.setStyle(QStyleFactory.create('Windows'))
     main_window = MainWindow()
     main_window.setMinimumSize(650, 600)
-    main_window.resize(650, 700)
+    # main_window.resize(650, 600)
     frame_geometry = main_window.frameGeometry()
     center_point = QDesktopWidget().availableGeometry().center()
     frame_geometry.moveCenter(center_point)
