@@ -18,6 +18,7 @@ from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap
+from starknet_degensoft.sithswap import SithSwap
 from starknet_degensoft.starknet_trader import StarknetTrader, TraderThread
 from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
     mask_hex_in_string
@@ -143,9 +144,10 @@ class MainWindow(QMainWindow):
     }
 
     swaps = {
-        'myswap': {'name': 'myswap.xyz', 'cls': MyswapSwap},
-        '10kswap': {'name': '10kswap', 'cls': TenKSwap},
-        'jediswap': {'name': 'jediswap', 'cls': JediSwap},
+        'myswap': {'name': 'MySwap.xyz', 'cls': MyswapSwap},
+        '10kswap': {'name': '10kSwap', 'cls': TenKSwap},
+        'jediswap': {'name': 'JediSwap', 'cls': JediSwap},
+        'sithswap': {'name': 'SithSwap', 'cls': SithSwap},
     }
 
     messages = {
@@ -169,7 +171,7 @@ class MainWindow(QMainWindow):
             'project_delay_min_sec_label': "min sec:",
             'wallet_delay_max_sec_label': "max sec:",
             'project_delay_max_sec_label': "max sec:",
-            'random_swap_checkbox': "Random project",
+            'random_swap_checkbox': "Random project (from selected above)",
             'min_eth_label': "min ETH:",
             'max_eth_label': "max ETH:",
             'min_price_label': "min $:",
@@ -228,7 +230,7 @@ class MainWindow(QMainWindow):
             'project_delay_min_sec_label': "мин сек:",
             'wallet_delay_max_sec_label': "макс сек:",
             'project_delay_max_sec_label': "макс сек:",
-            'random_swap_checkbox': "Рандомный проект",
+            'random_swap_checkbox': "Рандомный проект (из отмеченных выше)",
             'min_eth_label': "мин ETH:",
             'max_eth_label': "макс ETH:",
             'min_price_label': "мин $:",

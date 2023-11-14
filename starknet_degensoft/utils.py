@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
+import functools
+import logging
 import os
+import random
 import re
 import sys
-import logging
-import random
+from decimal import Decimal
+
 import colorlog
 import requests
 from web3 import Web3
-from decimal import Decimal
 
 
 def load_lines(filename):
@@ -123,7 +125,8 @@ def mask_hex_in_string(input_string):
             continue
         # Если нет, заменяем hex на звездочки, оставив первые и последние 4 символа
         else:
-            parts[i] = pattern_hex.sub(lambda m: m.group(1) + m.group(2)[:4] + '*' * (len(m.group(2)) - 8) + m.group(2)[-4:], parts[i])
+            parts[i] = pattern_hex.sub(
+                lambda m: m.group(1) + m.group(2)[:4] + '*' * (len(m.group(2)) - 8) + m.group(2)[-4:], parts[i])
     return ''.join(parts)
 
 
@@ -134,7 +137,8 @@ def get_ethereum_gas():
         r = requests.get(url1)
         r1 = float(r.json()['result']['SafeGasPrice'])
         return r1
-    except: pass
+    except:
+        pass
     try:
         r = requests.get(url2, headers={
             "X-Requested-With": "XMLHttpRequest",
@@ -143,6 +147,35 @@ def get_ethereum_gas():
         })
         r2 = float(r.json()['avgPrice'])
         return r2
-    except: pass
+    except:
+        pass
     return 0
 
+
+# def force_async(fn):
+#     # turns a sync function to async function using threads
+#     from concurrent.futures import ThreadPoolExecutor
+#     import asyncio
+#     pool = ThreadPoolExecutor()
+#
+#     @functools.wraps(fn)
+#     def wrapper(*args, **kwargs):
+#         future = pool.submit(fn, *args, **kwargs)
+#         return asyncio.wrap_future(future)  # make it awaitable
+#
+#     return wrapper
+
+
+def force_sync(fn):
+    # turn an async function to sync function
+    import asyncio
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        res = fn(*args, **kwargs)
+        if asyncio.iscoroutine(res):
+            return asyncio.run(res)
+            # return asyncio.get_event_loop().run_until_complete(res)
+        return res
+
+    return wrapper

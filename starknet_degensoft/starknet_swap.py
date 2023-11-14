@@ -2,6 +2,7 @@
 from functools import cached_property
 
 from starknet_py.contract import Contract
+from asgiref.sync import async_to_sync
 from starknet_py.net.account.account import Account as StarknetAccount
 
 from starknet_degensoft.utils import uniswap_v2_calculate_tokens_and_price
@@ -82,7 +83,9 @@ class BaseSwap:
     _contract_address = '0x0'
     _proxy_config = False
 
-    def __init__(self, account: StarknetAccount, eth_contract_address: str, testnet: bool = False):
+    def __init__(self, account: StarknetAccount,
+                 eth_contract_address: str = '0x049d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7',
+                 testnet: bool = False):
         self.account = account
         self.testnet = testnet
         self.eth_contract_address = eth_contract_address
@@ -92,7 +95,8 @@ class BaseSwap:
     def get_prepared_approve_tx(self, amount, token_address, trade_address=None):
         if not trade_address:
             trade_address = self._contract_address
-        token_contract = Contract.from_address_sync(address=token_address, provider=self.account, proxy_config=True)
+        token_contract = Contract(address=token_address, abi=ERC20_ABI, provider=self.account)
+        # token_contract = await Contract.from_address(address=token_address, provider=self.account, proxy_config=True)
         return token_contract.functions['approve'].prepare(spender=int(trade_address, base=16), amount=amount)
 
     def check_balance(self, amount):
@@ -100,11 +104,14 @@ class BaseSwap:
         if account_balance < amount:
             raise ValueError('no such balance to swap')
 
+    def swap(self, amount, token_a_address, token_b_address, slippage=2.0):
+        raise NotImplementedError()
+
     def swap_eth_to_token(self, amount, token_address, slippage=2.0):
         raise NotImplementedError()
 
-    def _calculate_token_b_amount(self):
-        raise NotImplementedError()
+    # def _calculate_token_b_amount(self):
+    #     raise NotImplementedError()
 
 
 class MyswapSwap(BaseSwap):
