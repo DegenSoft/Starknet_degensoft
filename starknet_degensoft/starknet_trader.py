@@ -22,7 +22,7 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
-from starknet_degensoft.sithswap import SithSwap
+from starknet_degensoft.starknet_swap import SithSwap, AvnuSwap
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
@@ -435,9 +435,9 @@ class StarknetTrader:
             # self.logger.debug(f'balance {token.from_native(balance):.4f} {token_symbol} ({balance_usd:.4f} USD)')
             if balance_usd > min_amount_usd:
                 if token_symbol in ('DAI', 'USDC', 'USDT'):
-                    swap_cls = random.choice((MyswapSwap, JediSwap, TenKSwap, SithSwap))
+                    swap_cls = random.choice((MyswapSwap, JediSwap, TenKSwap, SithSwap, AvnuSwap))
                 else:
-                    swap_cls = random.choice((JediSwap, TenKSwap, SithSwap))
+                    swap_cls = random.choice((JediSwap, TenKSwap, SithSwap, AvnuSwap))
                 tokens_to_swap.append(dict(cls=swap_cls, token=token, symbol=token_symbol,
                                            balance=balance, balance_usd=balance_usd))
                 cnt += 1

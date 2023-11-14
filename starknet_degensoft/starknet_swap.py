@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from functools import cached_property
+from asgiref.sync import async_to_sync
 
 from starknet_py.contract import Contract
 from asgiref.sync import async_to_sync
@@ -114,6 +115,15 @@ class BaseSwap:
     #     raise NotImplementedError()
 
 
+class AsyncBaseSwap(BaseSwap):
+
+    def swap(self, amount, token_a_address, token_b_address, slippage=2.0):
+        return async_to_sync(self.swap_async)(amount, token_a_address, token_b_address, slippage)
+
+    async def swap_async(self, amount, token_a_address, token_b_address, slippage):
+        raise NotImplementedError()
+
+
 class MyswapSwap(BaseSwap):
     _proxy_config = True
     swap_name = 'myswap'
@@ -224,7 +234,6 @@ class UniswapForkBaseSwap(BaseSwap):
 
 
 class JediSwap(UniswapForkBaseSwap):
-
     _swap_function_name = 'swap_exact_tokens_for_tokens'
     _amounts_function_name = 'get_amounts_out'
     swap_name = 'jediswap'
@@ -246,3 +255,7 @@ class TenKSwap(UniswapForkBaseSwap):
     def _contract_address(self):
         return '0x00975910cd99bc56bd289eaaa5cee6cd557f0ddafdb2ce6ebea15b158eb2c664' if self.testnet else \
             '0x7a6f98c03379b9513ca84cca1373ff452a7462a3b61598f0af5bb27ad7f76d1'
+
+
+from starknet_degensoft.sithswap import SithSwap
+from starknet_degensoft.avnuswap import AvnuSwap

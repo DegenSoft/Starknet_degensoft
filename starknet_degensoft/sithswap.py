@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-from asgiref.sync import async_to_sync
 
-from starknet_degensoft.starknet_swap import BaseSwap
+from starknet_degensoft.starknet_swap import AsyncBaseSwap
 
 
-class SithSwap(BaseSwap):
+class SithSwap(AsyncBaseSwap):
     _contract_address = '0x028c858a586fa12123a1ccb337a0a3b369281f91ea00544d0c086524b759f627'
     swap_name = 'sithswap'
 
@@ -19,9 +18,6 @@ class SithSwap(BaseSwap):
         stable = min_amount_out_data.stable
 
         return int(min_amount_out - (min_amount_out / 100 * slippage)), stable
-
-    def swap(self, amount, token_a_address, token_b_address, slippage=2.0):
-        return async_to_sync(self.swap_async)(amount, token_a_address, token_b_address, slippage)
 
     async def swap_async(self, amount, token_a_address, token_b_address, slippage=2.0):
         path = [int(token_a_address, 16), int(token_b_address, 16)]
