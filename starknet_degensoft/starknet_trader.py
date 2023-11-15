@@ -22,7 +22,7 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
-from starknet_degensoft.starknet_swap import SithSwap, AvnuSwap
+from starknet_degensoft.starknet_swap import SithSwap, AvnuSwap, FibrousSwap
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
@@ -434,10 +434,10 @@ class StarknetTrader:
                 raise ValueError(f'bad token {token_symbol}, could not calculate USD token balance')
             # self.logger.debug(f'balance {token.from_native(balance):.4f} {token_symbol} ({balance_usd:.4f} USD)')
             if balance_usd > min_amount_usd:
-                if token_symbol in ('DAI', 'USDC', 'USDT'):
-                    swap_cls = random.choice((MyswapSwap, JediSwap, TenKSwap, SithSwap, AvnuSwap))
-                else:
-                    swap_cls = random.choice((JediSwap, TenKSwap, SithSwap, AvnuSwap))
+                all_swap_clss = [MyswapSwap, JediSwap, TenKSwap, SithSwap, AvnuSwap, FibrousSwap]
+                if token_symbol not in ('DAI', 'USDC', 'USDT'):
+                    all_swap_clss = all_swap_clss[1:]  # remove Myswap
+                swap_cls = random.choice(all_swap_clss)
                 tokens_to_swap.append(dict(cls=swap_cls, token=token, symbol=token_symbol,
                                            balance=balance, balance_usd=balance_usd))
                 cnt += 1

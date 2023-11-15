@@ -17,7 +17,7 @@ from starknet_degensoft.api_client2 import DegenSoftApiClient
 from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
-from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap, SithSwap, AvnuSwap
+from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap, SithSwap, AvnuSwap, FibrousSwap
 from starknet_degensoft.starknet_trader import StarknetTrader, TraderThread
 from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
     mask_hex_in_string
@@ -148,6 +148,7 @@ class MainWindow(QMainWindow):
         'jediswap': {'name': 'JediSwap', 'cls': JediSwap},
         'sithswap': {'name': 'SithSwap', 'cls': SithSwap},
         'avnuswap': {'name': 'Avnu', 'cls': AvnuSwap},
+        'fibrous': {'name': 'Fibrous', 'cls': FibrousSwap},
     }
 
     messages = {

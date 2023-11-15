@@ -259,3 +259,4 @@ class TenKSwap(UniswapForkBaseSwap):
 
 from starknet_degensoft.sithswap import SithSwap
 from starknet_degensoft.avnuswap import AvnuSwap
+from starknet_degensoft.fibrous_finance import FibrousSwap
