@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-import pprint
-
 import aiohttp
 from starknet_py.hash.selector import get_selector_from_name
 from starknet_py.net.client_models import Call

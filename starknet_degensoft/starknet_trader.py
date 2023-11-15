@@ -529,9 +529,10 @@ class StarknetTrader:
 
     @action_decorator('swap')
     def swap(self, swap_cls, account, amount, token_a_address, token_b_address, wait_for_tx=True):
+        slippage = self.config.data['gui_config'].get('slippage_spinbox', 1.0)
         s = swap_cls(account=account, testnet=self.testnet, eth_contract_address=self.starknet_eth_contract)
         res = s.swap(amount=amount, token_a_address=token_a_address, token_b_address=token_b_address,
-                     slippage=self.config.slippage)
+                     slippage=slippage)
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')

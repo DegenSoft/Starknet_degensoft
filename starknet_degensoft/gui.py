@@ -165,6 +165,8 @@ class MainWindow(QMainWindow):
             'backswaps_checkbox': "Make swap tokens to ETH",
             'backswaps_usd_label': "Minimum token USD price:",
             'backswaps_count_label': "Amount of swaps (random tokens):",
+            'project_settings_label': "Swap settings",
+            'slippage_label': "Maximum slippage:",
             'options_label': "Options",
             'wallet_delay_label': "Wallet delay",
             'project_delay_label': "Project delay",
@@ -224,6 +226,8 @@ class MainWindow(QMainWindow):
             'backswaps_checkbox': "Сделать свап токенов в ETH",
             'backswaps_usd_label': "Минимальная цена токена в USD:",
             'backswaps_count_label': "Количество свапов в ETH (рандомный выбор токенов):",
+            'project_settings_label': "Настройки свапов",
+            'slippage_label': "Максимальное проскальзывание (slippage):",
             'options_label': "Настройки",
             'wallet_delay_label': "Задержка между кошельками",
             'project_delay_label': "Задержка между проектами",
@@ -481,25 +485,6 @@ class MainWindow(QMainWindow):
         self.widgets_tr['repeat_count'] = repeat_count_label
         use_configs_checkbox.stateChanged.connect(self.on_use_configs_changed)
 
-        # projects_layout.addWidget(QSplitter())
-
-        # self.hide_widget = QWidget()
-        # self.hide_widget_layout = QVBoxLayout()
-        # self.hide_widget_layout.setContentsMargins(0, 0, 0, 0)
-        # self.hide_widget.setLayout(self.hide_widget_layout)
-        # projects_layout.addWidget(self.hide_widget)
-
-        # self.scroll_area = QScrollArea()
-        # self.scroll_area.setWidgetResizable(True)
-
-        # self.scroll_area_widget = QWidget()
-        # project_widget = QWidget()
-        # projects_layout = QVBoxLayout()
-        # projects_layout.setContentsMargins(5, 5, 5, 5)
-        # projects_layout.setContentsMargins(0, 0, 0, 0)
-        # project_widget.setLayout(projects_layout)
-        # self.scroll_area_widget.setLayout(projects_layout)
-
         bridges_label = QLabel()
         bridges_label.setFont(bold_font)
         bridges_tab_layout.addWidget(bridges_label)
@@ -637,9 +622,24 @@ class MainWindow(QMainWindow):
         backswaps_layout.addWidget(backswaps_usd_spinbox)
         projects_layout.addLayout(backswaps_layout)
 
-        # self.scroll_area.setWidget(self.scroll_area_widget)
-        # self.hide_widget_layout.addWidget(self.scroll_area)
-        # self.hide_widget_layout.addWidget(project_widget)
+        project_settings_label = QLabel()
+        project_settings_label.setFont(bold_font)
+        self.widgets_tr['project_settings_label'] = project_settings_label
+        projects_layout.addWidget(project_settings_label)
+
+        # slippage setting
+        slippage_layout = QHBoxLayout()
+        slippage_label = QLabel()
+        self.widgets_tr['slippage_label'] = slippage_label
+        slippage_spinbox = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        slippage_spinbox.setRange(0.1, 50.0)
+        self.widgets_config['slippage_spinbox'] = slippage_spinbox
+        slippage_percent_label = QLabel(text='%')
+        slippage_layout.addWidget(slippage_label)
+        slippage_layout.addWidget(slippage_spinbox)
+        slippage_layout.addWidget(slippage_percent_label)
+
+        projects_layout.addLayout(slippage_layout)
 
         options_label = QLabel()
         options_label.setFont(bold_font)
