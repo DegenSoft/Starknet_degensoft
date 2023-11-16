@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import pprint
 import sys
 import time
 
@@ -160,7 +161,7 @@ class MainWindow(QMainWindow):
             'private_keys_label': "Private keys file",
             'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
             'back_bridges_label': "Select bridge and destination network to withdraw ETH from Starknet",
-            'quests_label': "Select quests",
+            'quests_label': "Select projects",
             'backswaps_label': "Back swap tokens to ETH",
             'backswaps_checkbox': "Make swap tokens to ETH",
             'backswaps_usd_label': "Minimum token USD price:",
@@ -209,7 +210,7 @@ class MainWindow(QMainWindow):
             "use_configs_checkbox": "Use selected configurations",
             "gas_limit_checkbox": "Ethereum Gas limit",
             "settings_tab": "Settings",
-            "projects_tab": "Projects",
+            "projects_tab": "Swaps",
             "bridges_tab": "Bridges",
             "logs_tab": "Logs",
         },
@@ -221,7 +222,7 @@ class MainWindow(QMainWindow):
             'private_keys_label': "Файл приватных ключей",
             'bridges_label': "Выберете мост и сеть в которой у вас есть ETH для перевода в Starknet",
             'back_bridges_label': "Выберете мост и сеть в которую переводить ETH из Starknet",
-            'quests_label': "Выберете квесты",
+            'quests_label': "Выберете проекты",
             'backswaps_label': "Обмен токенов обратно в ETH",
             'backswaps_checkbox': "Сделать свап токенов в ETH",
             'backswaps_usd_label': "Минимальная цена токена в USD:",
@@ -270,7 +271,7 @@ class MainWindow(QMainWindow):
             "use_configs_checkbox": "Использовать выбранные конфигурации",
             "gas_limit_checkbox": "Ethereum лимит газа",
             "settings_tab": "Настройки",
-            "projects_tab": "Проекты",
+            "projects_tab": "Свапы",
             "bridges_tab": "Мосты",
             "logs_tab": "Логи",
         }
@@ -298,9 +299,9 @@ class MainWindow(QMainWindow):
             for bridge_name in self.bridges:
                 self.messages[lang][f'min_eth_{bridge_name}_label'] = self.messages[lang]['min_eth_label']
                 self.messages[lang][f'max_eth_{bridge_name}_label'] = self.messages[lang]['max_eth_label']
-            for swap_name in self.swaps:
-                self.messages[lang][f'min_price_{swap_name}_label'] = self.messages[lang]['min_price_label']
-                self.messages[lang][f'max_price_{swap_name}_label'] = self.messages[lang]['max_price_label']
+            # for swap_name in self.swaps:
+            #     self.messages[lang][f'min_price_{swap_name}_label'] = self.messages[lang]['min_price_label']
+            #     self.messages[lang][f'max_price_{swap_name}_label'] = self.messages[lang]['max_price_label']
         self.widgets_tr = {}
         self.widgets_config = {}
         self.language = 'en'
@@ -558,7 +559,6 @@ class MainWindow(QMainWindow):
             self.back_bridges[key]['max_percent'] = max_percent_selector
             bridges_tab_layout.addLayout(back_bridge_layout)
 
-        # projects_layout.addWidget(QSplitter())
         quests_label = QLabel()
         quests_label.setFont(bold_font)
         self.widgets_tr['quests_label'] = quests_label
@@ -569,27 +569,27 @@ class MainWindow(QMainWindow):
             swap_checkbox = QCheckBox(self.swaps[key]['name'])
             swap_checkbox.setChecked(True)
             quest_layout.addWidget(swap_checkbox)
-            min_price_label = QLabel(self.tr('min $:'))
-            quest_layout.addWidget(min_price_label)
-            min_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            min_eth_selector.setRange(0, 10000)
-            quest_layout.addWidget(min_eth_selector)
-            max_price_label = QLabel(self.tr('max $:'))
-            quest_layout.addWidget(max_price_label)
-            max_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            max_eth_selector.setRange(0, 10000)
-            quest_layout.addWidget(max_eth_selector)
-            quest_layout.setStretch(0, 1)
-            quest_layout.setStretch(2, 1)
-            quest_layout.setStretch(4, 1)
-            self.widgets_tr[f'min_price_{key}_label'] = min_price_label
-            self.widgets_tr[f'max_price_{key}_label'] = max_price_label
-            self.widgets_config[f'min_price_{key}_selector'] = min_eth_selector
-            self.widgets_config[f'max_price_{key}_selector'] = max_eth_selector
+            # min_price_label = QLabel(self.tr('min $:'))
+            # quest_layout.addWidget(min_price_label)
+            # min_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+            # min_eth_selector.setRange(0, 10000)
+            # quest_layout.addWidget(min_eth_selector)
+            # max_price_label = QLabel(self.tr('max $:'))
+            # quest_layout.addWidget(max_price_label)
+            # max_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+            # max_eth_selector.setRange(0, 10000)
+            # quest_layout.addWidget(max_eth_selector)
+            # quest_layout.setStretch(0, 1)
+            # quest_layout.setStretch(2, 1)
+            # quest_layout.setStretch(4, 1)
+            # self.widgets_tr[f'min_price_{key}_label'] = min_price_label
+            # self.widgets_tr[f'max_price_{key}_label'] = max_price_label
+            # self.widgets_config[f'min_price_{key}_selector'] = min_eth_selector
+            # self.widgets_config[f'max_price_{key}_selector'] = max_eth_selector
             self.widgets_config[f'swap_{key}_checkbox'] = swap_checkbox
             self.swaps[key]['checkbox'] = swap_checkbox
-            self.swaps[key]['min_price'] = min_eth_selector
-            self.swaps[key]['max_price'] = max_eth_selector
+            # self.swaps[key]['min_price'] = min_eth_selector
+            # self.swaps[key]['max_price'] = max_eth_selector
             projects_layout.addLayout(quest_layout)
 
         random_swap_checkbox = QCheckBox()
@@ -597,7 +597,6 @@ class MainWindow(QMainWindow):
         self.widgets_config['random_swap_checkbox'] = random_swap_checkbox
         projects_layout.addWidget(random_swap_checkbox)
 
-        # projects_layout.addWidget(QSplitter())
         backswaps_label = QLabel()
         backswaps_label.setFont(bold_font)
         self.widgets_tr['backswaps_label'] = backswaps_label
@@ -622,10 +621,31 @@ class MainWindow(QMainWindow):
         backswaps_layout.addWidget(backswaps_usd_spinbox)
         projects_layout.addLayout(backswaps_layout)
 
+        # swap settings
         project_settings_label = QLabel()
         project_settings_label.setFont(bold_font)
         self.widgets_tr['project_settings_label'] = project_settings_label
         projects_layout.addWidget(project_settings_label)
+
+        # swap range settings
+        quest_layout = QHBoxLayout()
+        min_price_label = QLabel(self.tr('min $:'))
+        min_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        min_eth_selector.setRange(0, 10000)
+        max_price_label = QLabel(self.tr('max $:'))
+        max_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        max_eth_selector.setRange(0, 10000)
+        quest_layout.addWidget(min_price_label)
+        quest_layout.addWidget(min_eth_selector)
+        quest_layout.addWidget(max_price_label)
+        quest_layout.addWidget(max_eth_selector)
+        projects_layout.addLayout(quest_layout)
+        quest_layout.setStretch(0, 1)
+        quest_layout.setStretch(2, 1)
+        self.widgets_tr[f'min_price_label'] = min_price_label
+        self.widgets_tr[f'max_price_label'] = max_price_label
+        self.widgets_config[f'min_price_selector'] = min_eth_selector
+        self.widgets_config[f'max_price_selector'] = max_eth_selector
 
         # slippage setting
         slippage_layout = QHBoxLayout()
@@ -768,6 +788,7 @@ class MainWindow(QMainWindow):
 
     def process_start(self, conf):
         self.logger.info('START button clicked')
+        # pprint.pp(conf)
         if not conf['api_key']:
             self.show_error_message(self.messages[self.language]['apikey_error'])
             return
@@ -795,10 +816,13 @@ class MainWindow(QMainWindow):
                     0 < conf[f'min_percent_{key}_selector'] <= conf[f'max_percent_{key}_selector']):
                 self.show_error_message(self.messages[self.language]['minmax_percent_error'])
                 return
-        for key in self.swaps:
-            if conf[f'swap_{key}_checkbox'] and not (0 < conf[f'min_price_{key}_selector'] <= conf[f'max_price_{key}_selector']):
-                self.show_error_message(self.messages[self.language]['minmax_usd_error'])
-                return
+        # for key in self.swaps:
+        #     if conf[f'swap_{key}_checkbox'] and not (0 < conf[f'min_price_{key}_selector'] <= conf[f'max_price_{key}_selector']):
+        #         self.show_error_message(self.messages[self.language]['minmax_usd_error'])
+        #         return
+        if not (0 < conf[f'min_price_selector'] <= conf[f'max_price_selector']):
+            self.show_error_message(self.messages[self.language]['minmax_usd_error'])
+            return
         for key in ('wallet_delay', 'project_delay'):
             if conf[f'{key}_min_sec'] != 0 and conf[f'{key}_min_sec'] > conf[f'{key}_max_sec']:
                 self.show_error_message(self.messages[self.language]['minmax_delay_error'])

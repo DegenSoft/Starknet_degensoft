@@ -2,6 +2,7 @@
 import json
 import logging
 import os
+import pprint
 import random
 import time
 from collections import namedtuple
@@ -135,11 +136,12 @@ class TraderThread(QThread):
         wallet_delay = (self.config['wallet_delay_min_sec'], self.config['wallet_delay_max_sec'])
         swap_delay = (self.config['project_delay_min_sec'], self.config['project_delay_max_sec'])
         projects = []
+        pprint.pp(self.config)
         for key in self.swaps:
             if self.config[f'swap_{key}_checkbox']:
-                projects.append(dict(cls=self.swaps[key]['cls'],
-                                     amount_usd=(self.config[f'min_price_{key}_selector'],
-                                                 self.config[f'max_price_{key}_selector'])))
+                # amount_usd = (self.config[f'min_price_{key}_selector'], self.config[f'max_price_{key}_selector'])
+                amount_usd = (self.config[f'min_price_selector'], self.config[f'max_price_selector'])
+                projects.append(dict(cls=self.swaps[key]['cls'], amount_usd=amount_usd))
         for key in random.sample(list(self.bridges), len(self.bridges)):
             if self.config[f'bridge_{key}_checkbox']:
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
@@ -161,7 +163,8 @@ class TraderThread(QThread):
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
                         random_swap_project=self.config['random_swap_checkbox'],
                         api=self.api,
-                        gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None)
+                        gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None,
+                        slippage=self.config.get('slippage_spinbox', 1.0))
         # self.task_completed.emit()
         # self.logger.removeHandler(self.handler)
 
@@ -278,7 +281,8 @@ class StarknetTrader:
             shuffle: bool = False,
             random_swap_project: bool = False,
             api: DegenSoftApiClient = None,
-            gas_limit: int = None):
+            gas_limit: int = None,
+            slippage: float = 1.0):
         self.paused = False
         self.stopped = False
         self._api = api
@@ -342,7 +346,8 @@ class StarknetTrader:
                     if not self.config.data.get('simulate'):
                         try:
                             self.back_swap(starknet_account=account.starknet_account,
-                                           count=project['count'], min_amount_usd=project['amount_usd'])
+                                           count=project['count'], min_amount_usd=project['amount_usd'],
+                                           slippage=slippage)
                         except Exception as ex:
                             self.logger.error(ex)
                 elif issubclass(project['cls'], BaseSwap):
@@ -362,7 +367,7 @@ class StarknetTrader:
                                   amount=Web3.to_wei(random_amount, 'ether'),
                                   token_a_address=self.starknet_eth_contract,
                                   token_b_address=token_address,
-                                  wait_for_tx=wait_for_tx)
+                                  wait_for_tx=wait_for_tx, slippage=slippage)
                 elif (project['cls'] == StarkgateBridge) and account.private_key:
                     random_amount = random_float(*project['amount'])
                     self.logger.info(f'Bridge Stargate from {project["network"]} -> {random_amount} ETH')
@@ -414,7 +419,7 @@ class StarknetTrader:
     def setup_account(self, account: StarknetAccount):
         raise NotImplementedError()
 
-    def back_swap(self, starknet_account, count, min_amount_usd):
+    def back_swap(self, starknet_account, count, min_amount_usd, slippage):
         # self.logger.debug(f'count={count}, amount_usd={min_amount_usd}')
         cnt = 0
         tokens_to_swap = []
@@ -461,7 +466,7 @@ class StarknetTrader:
                       amount=token_to_swap["balance"],
                       token_a_address=self.starknet_contracts[token_to_swap["symbol"]],
                       token_b_address=self.starknet_eth_contract,
-                      wait_for_tx=wait_for_tx)
+                      wait_for_tx=wait_for_tx, slippage=slippage)
 
     @action_decorator('bridge')
     def deposit_layerswap(self, source_network, ethereum_private_key, starknet_account, amount):
@@ -528,8 +533,8 @@ class StarknetTrader:
         return tx_hash.hex()
 
     @action_decorator('swap')
-    def swap(self, swap_cls, account, amount, token_a_address, token_b_address, wait_for_tx=True):
-        slippage = self.config.data['gui_config'].get('slippage_spinbox', 1.0)
+    def swap(self, swap_cls, account, amount, token_a_address, token_b_address, wait_for_tx=True, slippage=1.0):
+        self.logger.debug(f'slippage={slippage}')
         s = swap_cls(account=account, testnet=self.testnet, eth_contract_address=self.starknet_eth_contract)
         res = s.swap(amount=amount, token_a_address=token_a_address, token_b_address=token_b_address,
                      slippage=slippage)
