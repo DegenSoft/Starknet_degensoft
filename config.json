@@ -59,7 +59,7 @@
       "WBTC": "0x012d537dc323c439dc65c976fad242d5610d27cfb5f31689a0a319b8be7f3d56"
     }
   },
-  "default_transaction_fee": 0.5,
+  "default_transaction_fee": 0.9,
   "gui_config": {
     "language_selector": 0,
     "api_key": "",
