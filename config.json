@@ -1,5 +1,6 @@
 {
   "testnet": false,
+  "simulate": false,
   "networks": {
     "starknet": {
       "rpc": [

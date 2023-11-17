@@ -11,7 +11,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
     QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, \
-    QTabWidget, QSpacerItem, QSizePolicy
+    QTabWidget, QSpacerItem, QSizePolicy, QGridLayout
 
 from degensoft.filereader import UniversalFileReader
 from starknet_degensoft.api_client2 import DegenSoftApiClient
@@ -167,7 +167,8 @@ class MainWindow(QMainWindow):
             'backswaps_usd_label': "Minimum token USD price:",
             'backswaps_count_label': "Amount of swaps (random tokens):",
             'project_settings_label': "Swap settings",
-            'slippage_label': "Maximum slippage:",
+            'slippage_label': "Maximum slippage, %:",
+            'rest_label': "Keep amount on the balance, $",
             'options_label': "Options",
             'wallet_delay_label': "Wallet delay",
             'project_delay_label': "Project delay",
@@ -178,8 +179,8 @@ class MainWindow(QMainWindow):
             'random_swap_checkbox': "Random project (from selected above)",
             'min_eth_label': "min ETH:",
             'max_eth_label': "max ETH:",
-            'min_price_label': "min $:",
-            'max_price_label': "max $:",
+            'min_price_label': "Minimum amount, $:",
+            'max_price_label': "Maximum amount, $:",
             'min_percent_layerswap_label': "min %:",
             'max_percent_layerswap_label': "max %:",
             'shuffle_checkbox': "Shuffle wallets",
@@ -228,7 +229,8 @@ class MainWindow(QMainWindow):
             'backswaps_usd_label': "Минимальная цена токена в USD:",
             'backswaps_count_label': "Количество свапов в ETH (рандомный выбор токенов):",
             'project_settings_label': "Настройки свапов",
-            'slippage_label': "Максимальное проскальзывание (slippage):",
+            'slippage_label': "Максимальное проскальзывание (slippage), %:",
+            'rest_label': "Оставить сумму на балансе, $",
             'options_label': "Настройки",
             'wallet_delay_label': "Задержка между кошельками",
             'project_delay_label': "Задержка между проектами",
@@ -239,8 +241,8 @@ class MainWindow(QMainWindow):
             'random_swap_checkbox': "Рандомный проект (из отмеченных выше)",
             'min_eth_label': "мин ETH:",
             'max_eth_label': "макс ETH:",
-            'min_price_label': "мин $:",
-            'max_price_label': "макс $:",
+            'min_price_label': "Минимальная сумма, $:",
+            'max_price_label': "Максимальная сумма, $:",
             'min_percent_layerswap_label': "мин %:",
             'max_percent_layerswap_label': "макс %:",
             'shuffle_checkbox': "Перемешать кошельки",
@@ -503,23 +505,23 @@ class MainWindow(QMainWindow):
             bridges_layout.addWidget(bridge_dropdown)
             min_label = QLabel()
             max_label = QLabel()
-            min_eth_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            max_eth_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+            min_price_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+            max_price_selector = QDoubleSpinBox(decimals=4, stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
             bridges_layout.addWidget(min_label)
-            bridges_layout.addWidget(min_eth_selector)
+            bridges_layout.addWidget(min_price_selector)
             bridges_layout.addWidget(max_label)
-            bridges_layout.addWidget(max_eth_selector)
+            bridges_layout.addWidget(max_price_selector)
             bridges_layout.setStretch(0, 1)
             bridges_layout.setStretch(1, 1)
             self.widgets_tr[f'min_eth_{key}_label'] = min_label
             self.widgets_tr[f'max_eth_{key}_label'] = max_label
             self.widgets_config[f'bridge_{key}_checkbox'] = bridge_checkbox
             self.widgets_config[f'bridge_{key}_network'] = bridge_dropdown
-            self.widgets_config[f'min_eth_{key}_selector'] = min_eth_selector
-            self.widgets_config[f'max_eth_{key}_selector'] = max_eth_selector
+            self.widgets_config[f'min_eth_{key}_selector'] = min_price_selector
+            self.widgets_config[f'max_eth_{key}_selector'] = max_price_selector
             self.bridges[key]['checkbox'] = bridge_checkbox
-            self.bridges[key]['min_eth'] = min_eth_selector
-            self.bridges[key]['max_eth'] = max_eth_selector
+            self.bridges[key]['min_eth'] = min_price_selector
+            self.bridges[key]['max_eth'] = max_price_selector
             bridges_tab_layout.addLayout(bridges_layout)
 
         # projects_layout.addWidget(QSplitter())
@@ -569,27 +571,8 @@ class MainWindow(QMainWindow):
             swap_checkbox = QCheckBox(self.swaps[key]['name'])
             swap_checkbox.setChecked(True)
             quest_layout.addWidget(swap_checkbox)
-            # min_price_label = QLabel(self.tr('min $:'))
-            # quest_layout.addWidget(min_price_label)
-            # min_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            # min_eth_selector.setRange(0, 10000)
-            # quest_layout.addWidget(min_eth_selector)
-            # max_price_label = QLabel(self.tr('max $:'))
-            # quest_layout.addWidget(max_price_label)
-            # max_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-            # max_eth_selector.setRange(0, 10000)
-            # quest_layout.addWidget(max_eth_selector)
-            # quest_layout.setStretch(0, 1)
-            # quest_layout.setStretch(2, 1)
-            # quest_layout.setStretch(4, 1)
-            # self.widgets_tr[f'min_price_{key}_label'] = min_price_label
-            # self.widgets_tr[f'max_price_{key}_label'] = max_price_label
-            # self.widgets_config[f'min_price_{key}_selector'] = min_eth_selector
-            # self.widgets_config[f'max_price_{key}_selector'] = max_eth_selector
             self.widgets_config[f'swap_{key}_checkbox'] = swap_checkbox
             self.swaps[key]['checkbox'] = swap_checkbox
-            # self.swaps[key]['min_price'] = min_eth_selector
-            # self.swaps[key]['max_price'] = max_eth_selector
             projects_layout.addLayout(quest_layout)
 
         random_swap_checkbox = QCheckBox()
@@ -628,38 +611,48 @@ class MainWindow(QMainWindow):
         projects_layout.addWidget(project_settings_label)
 
         # swap range settings
-        quest_layout = QHBoxLayout()
+        swap_settings_layout = QGridLayout()
+        spacer_ = QSpacerItem(300, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        projects_layout.addLayout(swap_settings_layout)
+
         min_price_label = QLabel(self.tr('min $:'))
-        min_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-        min_eth_selector.setRange(0, 10000)
+        min_price_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        min_price_selector.setRange(0, 10000)
         max_price_label = QLabel(self.tr('max $:'))
-        max_eth_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
-        max_eth_selector.setRange(0, 10000)
-        quest_layout.addWidget(min_price_label)
-        quest_layout.addWidget(min_eth_selector)
-        quest_layout.addWidget(max_price_label)
-        quest_layout.addWidget(max_eth_selector)
-        projects_layout.addLayout(quest_layout)
-        quest_layout.setStretch(0, 1)
-        quest_layout.setStretch(2, 1)
+        max_price_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        max_price_selector.setRange(0, 10000)
+        swap_settings_layout.addWidget(min_price_label, 0, 0, 1, 1)
+        swap_settings_layout.addWidget(min_price_selector, 0, 1, 1, 1)
+        swap_settings_layout.addWidget(max_price_label, 1, 0, 1, 1)
+        swap_settings_layout.addWidget(max_price_selector, 1, 1, 1, 1)
         self.widgets_tr[f'min_price_label'] = min_price_label
         self.widgets_tr[f'max_price_label'] = max_price_label
-        self.widgets_config[f'min_price_selector'] = min_eth_selector
-        self.widgets_config[f'max_price_selector'] = max_eth_selector
+        self.widgets_config[f'min_price_selector'] = min_price_selector
+        self.widgets_config[f'max_price_selector'] = max_price_selector
+        swap_settings_layout.addItem(spacer_, 0, 2, 1, 1)
 
         # slippage setting
-        slippage_layout = QHBoxLayout()
+        # slippage_layout = QHBoxLayout()
         slippage_label = QLabel()
         self.widgets_tr['slippage_label'] = slippage_label
         slippage_spinbox = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
         slippage_spinbox.setRange(0.1, 50.0)
         self.widgets_config['slippage_spinbox'] = slippage_spinbox
-        slippage_percent_label = QLabel(text='%')
-        slippage_layout.addWidget(slippage_label)
-        slippage_layout.addWidget(slippage_spinbox)
-        slippage_layout.addWidget(slippage_percent_label)
+        # slippage_percent_label = QLabel(text='%')
+        swap_settings_layout.addWidget(slippage_label, 2, 0, 1, 1)
+        swap_settings_layout.addWidget(slippage_spinbox, 2, 1, 1, 1)
+        # slippage_layout.addWidget(slippage_label)
+        # slippage_layout.addWidget(slippage_spinbox)
+        # slippage_layout.addWidget(slippage_percent_label)
 
-        projects_layout.addLayout(slippage_layout)
+        # projects_layout.addLayout(slippage_layout)
+        rest_label = QLabel()
+        self.widgets_tr['rest_label'] = rest_label
+        rest_spinbox = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
+        rest_spinbox.setRange(0, 99999)
+        self.widgets_config['rest_spinbox'] = rest_spinbox
+        swap_settings_layout.addWidget(rest_label, 3, 0, 1, 1)
+        swap_settings_layout.addWidget(rest_spinbox, 3, 1, 1, 1)
 
         options_label = QLabel()
         options_label.setFont(bold_font)
@@ -816,10 +809,6 @@ class MainWindow(QMainWindow):
                     0 < conf[f'min_percent_{key}_selector'] <= conf[f'max_percent_{key}_selector']):
                 self.show_error_message(self.messages[self.language]['minmax_percent_error'])
                 return
-        # for key in self.swaps:
-        #     if conf[f'swap_{key}_checkbox'] and not (0 < conf[f'min_price_{key}_selector'] <= conf[f'max_price_{key}_selector']):
-        #         self.show_error_message(self.messages[self.language]['minmax_usd_error'])
-        #         return
         if not (0 < conf[f'min_price_selector'] <= conf[f'max_price_selector']):
             self.show_error_message(self.messages[self.language]['minmax_usd_error'])
             return
@@ -956,7 +945,6 @@ def main():
     # app.setStyle(QStyleFactory.create('Windows'))
     main_window = MainWindow()
     main_window.setMinimumSize(650, 600)
-    # main_window.resize(650, 600)
     frame_geometry = main_window.frameGeometry()
     center_point = QDesktopWidget().availableGeometry().center()
     frame_geometry.moveCenter(center_point)
