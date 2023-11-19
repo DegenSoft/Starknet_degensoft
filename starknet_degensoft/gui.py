@@ -196,7 +196,7 @@ class MainWindow(QMainWindow):
             'csv_error': 'Failed to load wallets file: ',
             'minmax_eth_error': 'Minimum ETH amount must be non-zero and less then Maximum ETH amount',
             'minmax_percent_error': 'Minimum percent must be less then Maximum percent',
-            'minmax_usd_error': 'Minimum USD$ amount must be non-zero and less then Maximum USD$ amount',
+            'minmax_usd_error': 'Minimum swap amount must be non-zero and less then Maximum amount',
             'minmax_delay_error': 'Minimum delay must be less or equal maximum delay',
             'decryption_error': 'Decryption error or wrong password',
             'configs_error': 'You must select config files',
@@ -261,7 +261,7 @@ class MainWindow(QMainWindow):
             'csv_error': 'Не удалось загрузить файл кошельков: ',
             'minmax_eth_error': 'Минимальная сумма ETH должна быть больше нуля и меньше Максимальной суммы ETH',
             'minmax_percent_error': 'Минимальный процент должен быть меньше максимального процента',
-            'minmax_usd_error': 'Минимальная USD$ сумма должна быть больше нуля и меньше максимальной USD$ суммы',
+            'minmax_usd_error': 'Минимальная сумма обмена должна быть больше нуля и меньше максимальной суммы',
             'minmax_delay_error': 'Минимальная задержка должна быть меньше или равна максимальной задержке',
             'decryption_error': 'Ошибка расшифровки или неверный пароль',
             'configs_error': 'Вы должны выбрать файлы конфигураций',
@@ -839,9 +839,12 @@ class MainWindow(QMainWindow):
                     0 < conf[f'min_percent_{key}_selector'] <= conf[f'max_percent_{key}_selector']):
                 self.show_error_message(self.messages[self.language]['minmax_percent_error'])
                 return
-        if not (0 < conf[f'min_price_selector'] <= conf[f'max_price_selector']):
-            self.show_error_message(self.messages[self.language]['minmax_usd_error'])
-            return
+        for key in self.swaps:
+            if self.swaps[key]['checkbox'].isEnabled():
+                if not (0 < conf['min_price_selector'] <= conf['max_price_selector']):
+                    self.show_error_message(self.messages[self.language]['minmax_usd_error'])
+                    return
+                break
         for key in ('wallet_delay', 'project_delay'):
             if conf[f'{key}_min_sec'] != 0 and conf[f'{key}_min_sec'] > conf[f'{key}_max_sec']:
                 self.show_error_message(self.messages[self.language]['minmax_delay_error'])
