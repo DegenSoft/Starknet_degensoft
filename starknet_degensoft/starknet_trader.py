@@ -298,7 +298,7 @@ class StarknetTrader:
                 try:
                     balance = Web3.from_wei(account.starknet_account.get_balance_sync(), 'ether')
                     is_deployed = account.starknet_account.is_deployed_sync()
-                    self.logger.info(f'Starknet Account {hex(account.starknet_account.address)} ({balance:.4f} ETH)')
+                    self.logger.info(f'Starknet Account {i}/{len(self.accounts)} {hex(account.starknet_account.address)} ({balance:.4f} ETH)')
                     break
                 except Exception as ex:
                     self.logger.error(ex)
