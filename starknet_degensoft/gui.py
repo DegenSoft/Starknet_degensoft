@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import pprint
 import sys
 import time
 
@@ -11,7 +10,7 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QCheckBox, QComboBox, QPushButton, \
     QTextEdit, QLabel, QLineEdit, QAction, QWidget, QDesktopWidget, QFileDialog, \
     QDoubleSpinBox, QSpinBox, QAbstractSpinBox, QMessageBox, QTextBrowser, QDialog, QDialogButtonBox, \
-    QTabWidget, QSpacerItem, QSizePolicy, QGridLayout
+    QTabWidget, QSpacerItem, QSizePolicy, QGridLayout, QRadioButton
 
 from degensoft.filereader import UniversalFileReader
 from starknet_degensoft.api_client2 import DegenSoftApiClient
@@ -179,6 +178,9 @@ class MainWindow(QMainWindow):
             'random_swap_checkbox': "Random project (from selected above)",
             'min_eth_label': "min ETH:",
             'max_eth_label': "max ETH:",
+            'amount_type_label': "Select amount in:",
+            'amount_percent': "percent, %",
+            'amount_dollars': "USD, $",
             'min_price_label': "Minimum amount, $:",
             'max_price_label': "Maximum amount, $:",
             'min_percent_layerswap_label': "min %:",
@@ -243,6 +245,9 @@ class MainWindow(QMainWindow):
             'max_eth_label': "макс ETH:",
             'min_price_label': "Минимальная сумма, $:",
             'max_price_label': "Максимальная сумма, $:",
+            'amount_type_label': "Выберите сумму в:",
+            'amount_percent': "процентах, %",
+            'amount_dollars': "долларах, $",
             'min_percent_layerswap_label': "мин %:",
             'max_percent_layerswap_label': "макс %:",
             'shuffle_checkbox': "Перемешать кошельки",
@@ -324,7 +329,7 @@ class MainWindow(QMainWindow):
                 widget.setCurrentIndex(value)
             elif isinstance(widget, QLineEdit):
                 widget.setText(value)
-            elif isinstance(widget, QCheckBox):
+            elif isinstance(widget, QCheckBox) or isinstance(widget, QRadioButton):
                 widget.setChecked(value)
             else:
                 widget.setValue(value)
@@ -339,7 +344,7 @@ class MainWindow(QMainWindow):
                 value = widget.currentIndex()
             elif isinstance(widget, QLineEdit):
                 value = widget.text()
-            elif isinstance(widget, QCheckBox):
+            elif isinstance(widget, QCheckBox) or isinstance(widget, QRadioButton):
                 if check_enabled_widget:
                     value = widget.isChecked() and widget.isEnabled()
                 else:
@@ -605,47 +610,57 @@ class MainWindow(QMainWindow):
         projects_layout.addLayout(backswaps_layout)
 
         # swap settings
+        amount_type_layout = QHBoxLayout()
+        amount_type_label = QLabel()
+        amount_type_layout.addWidget(amount_type_label)
+        amount_percent_button = QRadioButton()
+        amount_type_layout.addWidget(amount_percent_button)
+        amount_dollars_button = QRadioButton()
+        amount_dollars_button.setChecked(True)
+        amount_type_layout.addWidget(amount_dollars_button)
+        spacer3 = QSpacerItem(100, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        amount_type_layout.addItem(spacer3)
+        self.widgets_tr['amount_type_label'] = amount_type_label
+        self.widgets_tr['amount_dollars'] = self.widgets_config['amount_dollars'] = amount_dollars_button
+        self.widgets_tr['amount_percent'] = self.widgets_config['amount_percent'] = amount_percent_button
+        amount_dollars_button.toggled.connect(self.change_price_type)
+
         project_settings_label = QLabel()
         project_settings_label.setFont(bold_font)
         self.widgets_tr['project_settings_label'] = project_settings_label
         projects_layout.addWidget(project_settings_label)
+        projects_layout.addLayout(amount_type_layout)
 
         # swap range settings
         swap_settings_layout = QGridLayout()
         spacer_ = QSpacerItem(300, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
         projects_layout.addLayout(swap_settings_layout)
 
-        min_price_label = QLabel(self.tr('min $:'))
+        min_price_label = QLabel()
         min_price_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
         min_price_selector.setRange(0, 10000)
-        max_price_label = QLabel(self.tr('max $:'))
+        max_price_label = QLabel()
         max_price_selector = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
         max_price_selector.setRange(0, 10000)
         swap_settings_layout.addWidget(min_price_label, 0, 0, 1, 1)
         swap_settings_layout.addWidget(min_price_selector, 0, 1, 1, 1)
         swap_settings_layout.addWidget(max_price_label, 1, 0, 1, 1)
         swap_settings_layout.addWidget(max_price_selector, 1, 1, 1, 1)
-        self.widgets_tr[f'min_price_label'] = min_price_label
-        self.widgets_tr[f'max_price_label'] = max_price_label
-        self.widgets_config[f'min_price_selector'] = min_price_selector
-        self.widgets_config[f'max_price_selector'] = max_price_selector
+        self.widgets_tr['min_price_label'] = min_price_label
+        self.widgets_tr['max_price_label'] = max_price_label
+        self.widgets_config['min_price_selector'] = min_price_selector
+        self.widgets_config['max_price_selector'] = max_price_selector
         swap_settings_layout.addItem(spacer_, 0, 2, 1, 1)
 
         # slippage setting
-        # slippage_layout = QHBoxLayout()
         slippage_label = QLabel()
         self.widgets_tr['slippage_label'] = slippage_label
         slippage_spinbox = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
         slippage_spinbox.setRange(0.1, 50.0)
         self.widgets_config['slippage_spinbox'] = slippage_spinbox
-        # slippage_percent_label = QLabel(text='%')
         swap_settings_layout.addWidget(slippage_label, 2, 0, 1, 1)
         swap_settings_layout.addWidget(slippage_spinbox, 2, 1, 1, 1)
-        # slippage_layout.addWidget(slippage_label)
-        # slippage_layout.addWidget(slippage_spinbox)
-        # slippage_layout.addWidget(slippage_percent_label)
 
-        # projects_layout.addLayout(slippage_layout)
         rest_label = QLabel()
         self.widgets_tr['rest_label'] = rest_label
         rest_spinbox = QDoubleSpinBox(stepType=QAbstractSpinBox.StepType.AdaptiveDecimalStepType)
@@ -778,6 +793,21 @@ class MainWindow(QMainWindow):
     def on_start_clicked(self):
         conf = self.get_config(check_enabled_widget=True)
         self.process_start(conf)
+
+    @property
+    def is_dollars_price(self) -> bool:
+        return self.widgets_config['amount_dollars'].isChecked()
+
+    def change_price_type(self, is_dollars):
+        for lang in self.messages.keys():
+            self.messages[lang]['min_price_label'] = self.messages[lang]['min_price_label'].replace(
+                '%' if is_dollars else '$', '$' if is_dollars else '%')
+            self.messages[lang]['max_price_label'] = self.messages[lang]['max_price_label'].replace(
+                '%' if is_dollars else '$', '$' if is_dollars else '%')
+        self.widgets_tr['min_price_label'].setText(self.messages[self.language]['min_price_label'])
+        self.widgets_tr['max_price_label'].setText(self.messages[self.language]['max_price_label'])
+        self.widgets_config['min_price_selector'].setRange(0, 10000 if is_dollars else 100)
+        self.widgets_config['max_price_selector'].setRange(0, 10000 if is_dollars else 100)
 
     def process_start(self, conf):
         self.logger.info('START button clicked')

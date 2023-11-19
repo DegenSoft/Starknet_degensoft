@@ -139,9 +139,10 @@ class TraderThread(QThread):
         # pprint.pp(self.config)
         for key in self.swaps:
             if self.config[f'swap_{key}_checkbox']:
-                amount_usd = (self.config[f'min_price_selector'], self.config[f'max_price_selector'])
-                projects.append(dict(cls=self.swaps[key]['cls'], amount_usd=amount_usd,
-                                     amount_keep=self.config['rest_spinbox']))
+                amount = (self.config[f'min_price_selector'], self.config[f'max_price_selector'])
+                projects.append(dict(cls=self.swaps[key]['cls'], amount=amount,
+                                     amount_keep=self.config['rest_spinbox'],
+                                     is_dollars_price=self.config['amount_dollars']))
         for key in random.sample(list(self.bridges), len(self.bridges)):
             if self.config[f'bridge_{key}_checkbox']:
                 bridge_network_name = self.bridges[key]['networks'][self.config[f'bridge_{key}_network']]
@@ -348,6 +349,7 @@ class StarknetTrader:
                         except Exception as ex:
                             self.logger.error(ex)
                 elif issubclass(project['cls'], BaseSwap):
+                    # swap amount calculation
                     eth_price = get_price('ETH')
                     balance_wei = account.starknet_account.get_balance_sync()
                     self.logger.debug(f'current balance {Web3.from_wei(balance_wei, "ether"):.4f} ETH '
@@ -360,8 +362,12 @@ class StarknetTrader:
                                           f'({Web3.from_wei(keep_amount_wei, "ether"):.4f} ETH)'
                                           f' > wallet balance ({Web3.from_wei(balance_wei, "ether"):.4f} ETH)')
                         continue
-                    min_amount_wei = Web3.to_wei(project['amount_usd'][0] / eth_price, "ether")
-                    max_amount_wei = Web3.to_wei(project['amount_usd'][1] / eth_price, "ether")
+                    if project['is_dollars_price']:
+                        min_amount_wei = Web3.to_wei(project['amount'][0] / eth_price, "ether")
+                        max_amount_wei = Web3.to_wei(project['amount'][1] / eth_price, "ether")
+                    else:
+                        min_amount_wei = int((balance_wei - keep_amount_wei) * project['amount'][0] / 100.0)
+                        max_amount_wei = int((balance_wei - keep_amount_wei) * project['amount'][1] / 100.0)
                     if max_amount_wei > balance_wei - keep_amount_wei:
                         max_amount_wei = balance_wei - keep_amount_wei
                     if min_amount_wei > max_amount_wei:

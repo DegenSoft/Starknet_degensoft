@@ -106,6 +106,8 @@
     "backswaps_checkbox": false,
     "backswaps_count_spinbox": 1,
     "backswaps_usd_spinbox": 0.1,
+    "amount_dollars": true,
+    "amount_percent": false,
     "slippage_spinbox": 1.0,
     "wallet_delay_min_sec": 3,
     "wallet_delay_max_sec": 10,
