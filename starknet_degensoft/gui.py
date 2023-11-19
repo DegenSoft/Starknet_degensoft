@@ -151,6 +151,10 @@ class MainWindow(QMainWindow):
         'fibrous': {'name': 'Fibrous', 'cls': FibrousSwap},
     }
 
+    nft = {
+        'starknet.id': {'name': 'starknet.id', 'cls': None},
+    }
+
     messages = {
         'en': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -215,6 +219,7 @@ class MainWindow(QMainWindow):
             "settings_tab": "Settings",
             "projects_tab": "Swaps",
             "bridges_tab": "Bridges",
+            "nft_tab": "NFT",
             "logs_tab": "Logs",
         },
         'ru': {
@@ -280,6 +285,7 @@ class MainWindow(QMainWindow):
             "settings_tab": "Настройки",
             "projects_tab": "Свапы",
             "bridges_tab": "Мосты",
+            "nft_tab": "NFT",
             "logs_tab": "Логи",
         }
     }
@@ -306,9 +312,6 @@ class MainWindow(QMainWindow):
             for bridge_name in self.bridges:
                 self.messages[lang][f'min_eth_{bridge_name}_label'] = self.messages[lang]['min_eth_label']
                 self.messages[lang][f'max_eth_{bridge_name}_label'] = self.messages[lang]['max_eth_label']
-            # for swap_name in self.swaps:
-            #     self.messages[lang][f'min_price_{swap_name}_label'] = self.messages[lang]['min_price_label']
-            #     self.messages[lang][f'max_price_{swap_name}_label'] = self.messages[lang]['max_price_label']
         self.widgets_tr = {}
         self.widgets_config = {}
         self.language = 'en'
@@ -364,8 +367,10 @@ class MainWindow(QMainWindow):
         logs_tab = QWidget()
         projects_tab = QWidget()
         bridges_tab = QWidget()
+        nft_tab = QWidget()
         self.projects_tab = projects_tab
         self.bridges_tab = bridges_tab
+        self.nft_tab = nft_tab
 
         projects_layout = QVBoxLayout()
         projects_tab.setLayout(projects_layout)
@@ -375,6 +380,8 @@ class MainWindow(QMainWindow):
         settings_tab.setLayout(settings_layout)
         log_layout = QVBoxLayout()
         logs_tab.setLayout(log_layout)
+        nft_layout = QVBoxLayout()
+        nft_tab.setLayout(nft_layout)
 
         bold_font = QFont()
         bold_font.setBold(True)
@@ -669,6 +676,20 @@ class MainWindow(QMainWindow):
         swap_settings_layout.addWidget(rest_label, 3, 0, 1, 1)
         swap_settings_layout.addWidget(rest_spinbox, 3, 1, 1, 1)
 
+        # nft tab
+        nft_layout.addWidget(quests_label)
+
+        for key in self.nft:
+            nft_project_layout = QHBoxLayout()
+            nft_checkbox = QCheckBox(self.nft[key]['name'])
+            nft_checkbox.setChecked(True)
+            nft_project_layout.addWidget(nft_checkbox)
+            self.widgets_config[f'nft_{key}_checkbox'] = nft_checkbox
+            self.nft[key]['checkbox'] = nft_checkbox
+            nft_layout.addLayout(nft_project_layout)
+
+        # options tab
+
         options_label = QLabel()
         options_label.setFont(bold_font)
         self.widgets_tr['options_label'] = options_label
@@ -732,10 +753,12 @@ class MainWindow(QMainWindow):
         settings_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         projects_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         bridges_tab_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        nft_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.tab_widget.addTab(settings_tab, "Settings")
         self.tab_widget.addTab(bridges_tab, "Bridges")
         self.tab_widget.addTab(projects_tab, "Projects")
+        self.tab_widget.addTab(nft_tab, "NFT")
         self.tab_widget.addTab(logs_tab, "Logs")
 
         central_widget = QWidget()
@@ -763,7 +786,8 @@ class MainWindow(QMainWindow):
         self.tab_widget.setTabText(0, self.tr(self.messages[self.language].get('settings_tab')))
         self.tab_widget.setTabText(1, self.tr(self.messages[self.language].get('bridges_tab')))
         self.tab_widget.setTabText(2, self.tr(self.messages[self.language].get('projects_tab')))
-        self.tab_widget.setTabText(3, self.tr(self.messages[self.language].get('logs_tab')))
+        self.tab_widget.setTabText(3, self.tr(self.messages[self.language].get('nft_tab')))
+        self.tab_widget.setTabText(4, self.tr(self.messages[self.language].get('logs_tab')))
         for widget_name in self.widgets_tr:
             if widget_name not in self.messages[self.language]:
                 continue
@@ -914,9 +938,9 @@ class MainWindow(QMainWindow):
         self.widgets_config['api_key'].setEchoMode(echo_mode)
 
     def on_use_configs_changed(self):
-        # self.hide_widget.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
         self.bridges_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
         self.projects_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
+        self.nft_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
 
     def on_bridge_checkbox_clicked(self):
         for key in self.bridges:
