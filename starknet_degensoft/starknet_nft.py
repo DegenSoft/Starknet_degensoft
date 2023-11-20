@@ -27,6 +27,7 @@ class BaseNft:
 class StarknetIdNft(BaseNft):
     _contract_address = '0x05dbdedc203e92749e2e746e2d40a768d966bd243df04a6b712e222bc040a9af'
     _proxy_config = True
+    project_name = 'starknet.id'
 
     async def mint_async(self):
         mint_call = self.contract.functions["mint"].prepare(int(random.random() * 1e12))
@@ -36,6 +37,7 @@ class StarknetIdNft(BaseNft):
 
 class StarkVerseNft(BaseNft):
     _contract_address = '0x060582df2cd4ad2c988b11fdede5c43f56a432e895df255ccd1af129160044b8'
+    project_name = 'starkverse.art'
 
     async def mint_async(self):
         mint_call = self.contract.functions["publicMint"].prepare(self.account.address)

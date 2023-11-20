@@ -24,6 +24,7 @@ from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClient, FullNodeClient
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
 from starknet_degensoft.starknet_swap import SithSwap, AvnuSwap, FibrousSwap
+from starknet_degensoft.starknet_nft import BaseNft
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
@@ -88,7 +89,7 @@ class TraderThread(QThread):
     task_completed = pyqtSignal()
     # logger_signal = pyqtSignal(str)
 
-    def __init__(self, api, trader, config, swaps, bridges, back_bridges, configs=None):
+    def __init__(self, api, trader, config, swaps: dict, bridges: dict, back_bridges: dict, nft: dict, configs=None):
         super().__init__()
         self.api = api
         self.trader = trader
@@ -96,6 +97,7 @@ class TraderThread(QThread):
         self.swaps = swaps
         self.bridges = bridges
         self.back_bridges = back_bridges
+        self.nft = nft
         self.paused = False
         self.configs = configs if configs else {}
         self.logger = logging.getLogger('starknet')
@@ -156,6 +158,9 @@ class TraderThread(QThread):
                                        self.config[f'max_percent_{key}_selector'])
                 projects.append(dict(cls=self.back_bridges[key]['cls'], network=back_bridge_network_name,
                                      amount_percent=back_bridge_percent, is_back=True))
+        for key in self.nft:
+            if self.config[f'nft_{key}_checkbox']:
+                projects.append(dict(cls=self.nft[key]['cls']))
         if self.config['backswaps_checkbox']:
             projects.append(dict(cls=None,
                                  count=self.config['backswaps_count_spinbox'],
@@ -312,22 +317,29 @@ class StarknetTrader:
             except Exception as ex:
                 self.logger.error(ex)
                 continue
+
             # choosing random SWAP project and uniq order
-            uniq_projects = []
+            other_projects = []
+            bridge_projects = []
             swap_projects = []
+            nft_projects = []
             for k, project in enumerate(projects, 1):
-                is_swap_project = project['cls'] and issubclass(project['cls'], BaseSwap)
-                if is_swap_project:
+                if not project['cls']:
+                    other_projects.append(project)
+                elif issubclass(project['cls'], BaseSwap):
                     swap_projects.append(project)
-                if swap_projects and (not is_swap_project or k == len(projects)):
-                    random.shuffle(swap_projects)
-                    if random_swap_project:
-                        swap_projects = swap_projects[:1]
-                    uniq_projects += swap_projects
-                    swap_projects = []
-                if not is_swap_project:
-                    uniq_projects.append(project)
-            for j, project in enumerate(uniq_projects, 1):
+                elif issubclass(project['cls'], BaseNft):
+                    nft_projects.append(project)
+                elif project['cls'] == StarkgateBridge or project['cls'] == LayerswapBridge:
+                    bridge_projects.append(project)
+            random.shuffle(swap_projects)
+            if random_swap_project:
+                swap_projects = swap_projects[:1]
+            random.shuffle(nft_projects)
+            unique_projects = swap_projects + other_projects + nft_projects + bridge_projects
+
+            for j, project in enumerate(unique_projects, 1):
+                # print(j, project)
                 if gas_limit is not None:
                     self.wait_for_gas(gas_limit)
                 if self.paused:
@@ -338,16 +350,19 @@ class StarknetTrader:
                     self.logger.error('Account not deployed yet')
                     break
                 self._api_address = [account.starknet_address, starknet_address]
-                wait_for_tx = False if j == len(uniq_projects) else True
+                wait_for_tx = False if j == len(unique_projects) else True
 
                 if project['cls'] is None:
+                    try:
+                        self.back_swap(starknet_account=account.starknet_account,
+                                       count=project['count'], min_amount_usd=project['amount_usd'],
+                                       slippage=slippage)
+                    except Exception as ex:
+                        self.logger.error(ex)
+                elif issubclass(project['cls'], BaseNft):
+                    self.logger.info(f'Mint NFT {project["cls"].project_name}')
                     if not self.config.data.get('simulate'):
-                        try:
-                            self.back_swap(starknet_account=account.starknet_account,
-                                           count=project['count'], min_amount_usd=project['amount_usd'],
-                                           slippage=slippage)
-                        except Exception as ex:
-                            self.logger.error(ex)
+                        self.nft(nft_cls=project['cls'], account=account.starknet_account, wait_for_tx=wait_for_tx)
                 elif issubclass(project['cls'], BaseSwap):
                     # swap amount calculation
                     eth_price = get_price('ETH')
@@ -475,17 +490,19 @@ class StarknetTrader:
                 self.process_pause()
             if self.stopped:
                 break
-            wait_for_tx = False if i == len(tokens_to_swap) else True
+            # wait_for_tx = False if i == len(tokens_to_swap) else True
             balance_from_native = token_to_swap["token"].from_native(token_to_swap["balance"])
             self.logger.info(f'Swap {token_to_swap["cls"].swap_name}: {balance_from_native:.4f} '
                              f'{token_to_swap["symbol"]} ({token_to_swap["balance_usd"]:.4f} USD) -> ETH')
             # self.logger.debug(f'wait_for_tx={wait_for_tx} i={i}, len()={len(tokens_to_swap)}')
+            if self.config.data.get('simulate'):
+                continue
             self.swap(swap_cls=token_to_swap["cls"],
                       account=starknet_account,
                       amount=token_to_swap["balance"],
                       token_a_address=self.starknet_contracts[token_to_swap["symbol"]],
                       token_b_address=self.starknet_eth_contract,
-                      wait_for_tx=wait_for_tx, slippage=slippage)
+                      wait_for_tx=True, slippage=slippage)
 
     @action_decorator('bridge')
     def deposit_layerswap(self, source_network, ethereum_private_key, starknet_account, amount):
@@ -553,10 +570,20 @@ class StarknetTrader:
 
     @action_decorator('swap')
     def swap(self, swap_cls, account, amount, token_a_address, token_b_address, wait_for_tx=True, slippage=1.0):
-        self.logger.debug(f'slippage={slippage}')
+        # self.logger.debug(f'slippage={slippage}')
         s = swap_cls(account=account, testnet=self.testnet, eth_contract_address=self.starknet_eth_contract)
         res = s.swap(amount=amount, token_a_address=token_a_address, token_b_address=token_b_address,
                      slippage=slippage)
+        self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
+        if wait_for_tx and not self.stopped:
+            self.logger.debug('Waiting for tx confirmation...')
+            self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=5)
+        return hex(res.transaction_hash)
+
+    @action_decorator('nft')
+    def nft(self, nft_cls, account, wait_for_tx=True):
+        n = nft_cls(account=account, eth_contract_address=self.starknet_eth_contract)
+        res = n.mint()
         self.logger.info(self.get_tx_url(hex(res.transaction_hash)))
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')

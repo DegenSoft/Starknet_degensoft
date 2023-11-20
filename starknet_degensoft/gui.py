@@ -18,6 +18,7 @@ from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap, SithSwap, AvnuSwap, FibrousSwap
+from starknet_degensoft.starknet_nft import StarknetIdNft, StarkVerseNft
 from starknet_degensoft.starknet_trader import StarknetTrader, TraderThread
 from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
     mask_hex_in_string
@@ -152,7 +153,8 @@ class MainWindow(QMainWindow):
     }
 
     nft = {
-        'starknet.id': {'name': 'starknet.id', 'cls': None},
+        'starknet.id': {'name': StarknetIdNft.project_name, 'cls': StarknetIdNft},
+        'starkverse.art': {'name': StarkVerseNft.project_name, 'cls': StarkVerseNft},
     }
 
     messages = {
@@ -165,6 +167,7 @@ class MainWindow(QMainWindow):
             'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
             'back_bridges_label': "Select bridge and destination network to withdraw ETH from Starknet",
             'quests_label': "Select projects",
+            'quests_label_2': "Select projects",
             'backswaps_label': "Back swap tokens to ETH",
             'backswaps_checkbox': "Make swap tokens to ETH",
             'backswaps_usd_label': "Minimum token USD price:",
@@ -231,6 +234,7 @@ class MainWindow(QMainWindow):
             'bridges_label': "Выберите мост и сеть в которой у вас есть ETH для перевода в Starknet",
             'back_bridges_label': "Выберите мост и сеть в которую переводить ETH из Starknet",
             'quests_label': "Выберите проекты",
+            'quests_label_2': "Выберите проекты",
             'backswaps_label': "Обмен токенов обратно в ETH",
             'backswaps_checkbox': "Сделать свап токенов в ETH",
             'backswaps_usd_label': "Минимальная цена токена в USD:",
@@ -677,7 +681,9 @@ class MainWindow(QMainWindow):
         swap_settings_layout.addWidget(rest_spinbox, 3, 1, 1, 1)
 
         # nft tab
-        nft_layout.addWidget(quests_label)
+        quests_label_2 = self.widgets_tr['quests_label_2'] = QLabel()
+        quests_label_2.setFont(bold_font)
+        nft_layout.addWidget(quests_label_2)
 
         for key in self.nft:
             nft_project_layout = QHBoxLayout()
@@ -903,8 +909,10 @@ class MainWindow(QMainWindow):
             configs['repeat_count'] = int(self.widgets_config['repeat_count'].text() or 1)
             configs['file_names'] = self.config_file_names
 
-        self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api, config=conf, configs=configs,
-                                          swaps=self.swaps, bridges=self.bridges, back_bridges=self.back_bridges)
+        self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api,
+                                          config=conf, configs=configs,
+                                          bridges=self.bridges, back_bridges=self.back_bridges,
+                                          swaps=self.swaps, nft=self.nft)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
         # self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
@@ -952,6 +960,8 @@ class MainWindow(QMainWindow):
     def _set_swap_checkboxes(self, disabled: bool):
         for key in self.swaps:
             self.swaps[key]['checkbox'].setDisabled(disabled)
+        self.projects_tab.setDisabled(disabled)
+        self.nft_tab.setDisabled(disabled)
         self.widgets_config['random_swap_checkbox'].setDisabled(disabled)
 
     def on_open_file_clicked(self):
