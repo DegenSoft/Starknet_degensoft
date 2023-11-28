@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import time
+import traceback
 
 from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
 from PyQt5.QtCore import pyqtSignal, QMetaObject
@@ -17,9 +18,9 @@ from starknet_degensoft.api_client2 import DegenSoftApiClient
 from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
-from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap, SithSwap, AvnuSwap, FibrousSwap
-from starknet_degensoft.starknet_nft import StarknetIdNft, StarkVerseNft
 from starknet_degensoft.starknet_dmail import StarknetDmail
+from starknet_degensoft.starknet_nft import StarknetIdNft, StarkVerseNft
+from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap, SithSwap, AvnuSwap, FibrousSwap
 from starknet_degensoft.starknet_trader import StarknetTrader, TraderThread
 from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
     mask_hex_in_string
@@ -57,6 +58,7 @@ def setup_gui_loging(logger, callback, formatter=log_formatter):
     formatter = log_formatter
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+
 
 class MyQTextEdit(QTextEdit):
 
@@ -97,7 +99,7 @@ class PasswordDialog(QDialog):
         self.buttonBox.setAutoFillBackground(False)
         # self.buttonBox.setLocale(QtCore.QLocale(QtCore.QLocale.Russian, QtCore.QLocale.RussianFederation))
         self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout.addWidget(self.buttonBox)
 
@@ -1011,11 +1013,12 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         file_name, _ = QFileDialog.getOpenFileNames(self, "Select configs", "", "All Files (*);;JSON Files (*.json)",
-                                                   options=options)
+                                                    options=options)
         if file_name:
             self.config_file_names = file_name
             self.logger.debug(f'Config files selected: {" ".join(file_name)}')
-            self.widgets_config['selected_configs_entry'].setText(", ".join(list(map(lambda x: os.path.basename(x), file_name))))
+            self.widgets_config['selected_configs_entry'].setText(
+                ", ".join(list(map(lambda x: os.path.basename(x), file_name))))
 
     def closeEvent(self, event):
         self.config.gui_config = self.get_config(check_enabled_widget=True)
@@ -1025,14 +1028,25 @@ class MainWindow(QMainWindow):
         QDesktopServices.openUrl(url)
 
 
-def main():
+def show_exception_message(exception):
     app = QApplication(sys.argv)
-    # app.setStyle(QStyleFactory.create('Windows'))
-    main_window = MainWindow()
-    main_window.setMinimumSize(650, 600)
-    frame_geometry = main_window.frameGeometry()
-    center_point = QDesktopWidget().availableGeometry().center()
-    frame_geometry.moveCenter(center_point)
-    main_window.move(frame_geometry.topLeft())
-    main_window.show()
-    sys.exit(app.exec_())
+    error_message = (f"An exception occurred:\n\n{type(exception).__name__}: {str(exception)}"
+                     f"\n\nTraceback:\n{traceback.format_exc()}")
+    QMessageBox.critical(None, 'Error', error_message, QMessageBox.Ok)
+    app.quit()
+
+
+def main():
+    try:
+        app = QApplication(sys.argv)
+        # app.setStyle(QStyleFactory.create('Windows'))
+        main_window = MainWindow()
+        main_window.setMinimumSize(650, 600)
+        frame_geometry = main_window.frameGeometry()
+        center_point = QDesktopWidget().availableGeometry().center()
+        frame_geometry.moveCenter(center_point)
+        main_window.move(frame_geometry.topLeft())
+        main_window.show()
+        sys.exit(app.exec_())
+    except Exception as ex:
+        return show_exception_message(ex)
