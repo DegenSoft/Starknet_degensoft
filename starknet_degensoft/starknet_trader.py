@@ -25,6 +25,7 @@ from starknet_degensoft.starknet import Account as StarknetAccount, GatewayClien
 from starknet_degensoft.starknet_swap import MyswapSwap, JediSwap, TenKSwap, BaseSwap, StarknetToken
 from starknet_degensoft.starknet_swap import SithSwap, AvnuSwap, FibrousSwap
 from starknet_degensoft.starknet_nft import BaseNft
+from starknet_degensoft.starknet_dmail import BaseDapp
 from starknet_degensoft.utils import random_float, get_explorer_address_url
 
 TraderAccount = namedtuple('TraderAccount', field_names=('private_key', 'starknet_address', 'starknet_account'))
@@ -89,7 +90,7 @@ class TraderThread(QThread):
     task_completed = pyqtSignal()
     # logger_signal = pyqtSignal(str)
 
-    def __init__(self, api, trader, config, swaps: dict, bridges: dict, back_bridges: dict, nft: dict, configs=None):
+    def __init__(self, api, trader, config, swaps: dict, bridges: dict, back_bridges: dict, dapps: dict, configs=None):
         super().__init__()
         self.api = api
         self.trader = trader
@@ -97,7 +98,7 @@ class TraderThread(QThread):
         self.swaps = swaps
         self.bridges = bridges
         self.back_bridges = back_bridges
-        self.nft = nft
+        self.dapps = dapps
         self.paused = False
         self.configs = configs if configs else {}
         self.logger = logging.getLogger('starknet')
@@ -158,9 +159,10 @@ class TraderThread(QThread):
                                        self.config[f'max_percent_{key}_selector'])
                 projects.append(dict(cls=self.back_bridges[key]['cls'], network=back_bridge_network_name,
                                      amount_percent=back_bridge_percent, is_back=True))
-        for key in self.nft:
-            if self.config[f'nft_{key}_checkbox']:
-                projects.append(dict(cls=self.nft[key]['cls']))
+        for key in self.dapps:
+            for key1 in self.dapps[key]:
+                if self.config[f'dapp_{key1}_checkbox']:
+                    projects.append(dict(cls=self.dapps[key][key1]['cls']))
         if self.config['backswaps_checkbox']:
             projects.append(dict(cls=None,
                                  count=self.config['backswaps_count_spinbox'],
@@ -168,6 +170,7 @@ class TraderThread(QThread):
         self.trader.run(projects=projects, wallet_delay=wallet_delay,
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
                         random_swap_project=self.config['random_swap_checkbox'],
+                        random_nft_project=self.config['random_dapp_checkbox'],
                         api=self.api,
                         gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None,
                         slippage=self.config.get('slippage_spinbox', 1.0),
@@ -282,6 +285,7 @@ class StarknetTrader:
             project_delay: tuple = (0, 0),
             shuffle: bool = False,
             random_swap_project: bool = False,
+            random_nft_project: bool = False,
             api: DegenSoftApiClient = None,
             gas_limit: int = None,
             slippage: float = 1.0,
@@ -323,11 +327,14 @@ class StarknetTrader:
             bridge_projects = []
             swap_projects = []
             nft_projects = []
+            dapp_projects = []
             for k, project in enumerate(projects, 1):
                 if not project['cls']:
                     other_projects.append(project)
                 elif issubclass(project['cls'], BaseSwap):
                     swap_projects.append(project)
+                elif issubclass(project['cls'], BaseDapp):
+                    dapp_projects.append(project)
                 elif issubclass(project['cls'], BaseNft):
                     nft_projects.append(project)
                 elif project['cls'] == StarkgateBridge or project['cls'] == LayerswapBridge:
@@ -336,7 +343,11 @@ class StarknetTrader:
             if random_swap_project:
                 swap_projects = swap_projects[:1]
             random.shuffle(nft_projects)
-            unique_projects = swap_projects + other_projects + nft_projects + bridge_projects
+            if random_nft_project:
+                nft_projects = nft_projects[:1]
+            dapp_nft_projects = nft_projects + dapp_projects
+            random.shuffle(dapp_nft_projects)
+            unique_projects = swap_projects + other_projects + dapp_nft_projects + bridge_projects
 
             for j, project in enumerate(unique_projects, 1):
                 # print(j, project)
@@ -359,8 +370,11 @@ class StarknetTrader:
                                        slippage=slippage)
                     except Exception as ex:
                         self.logger.error(ex)
-                elif issubclass(project['cls'], BaseNft):
-                    self.logger.info(f'Mint NFT {project["cls"].project_name}')
+                elif issubclass(project['cls'], BaseNft) or issubclass(project['cls'], BaseDapp):
+                    if issubclass(project['cls'], BaseDapp):
+                        self.logger.info(f'dApp {project["cls"].project_name}')
+                    else:
+                        self.logger.info(f'Mint NFT {project["cls"].project_name}')
                     if not self.config.data.get('simulate'):
                         self.nft(nft_cls=project['cls'], account=account.starknet_account, wait_for_tx=wait_for_tx)
                 elif issubclass(project['cls'], BaseSwap):

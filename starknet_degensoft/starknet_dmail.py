@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
-import os
 import random
 from hashlib import sha256
+
 from starknet_degensoft.starknet_nft import BaseNft
-from starknet_degensoft.utils import resource_path
 
 
-class StarknetDmail(BaseNft):
+class BaseDapp(BaseNft):
+    ...
+
+
+class StarknetDmail(BaseDapp):
     project_name = 'DMail'
     _contract_address = '0x0454f0bd015e730e5adbb4f080b075fdbf55654ff41ee336203aa2e1ac4d4309'
 

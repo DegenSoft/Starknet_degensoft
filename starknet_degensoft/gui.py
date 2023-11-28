@@ -19,6 +19,7 @@ from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap, SithSwap, AvnuSwap, FibrousSwap
 from starknet_degensoft.starknet_nft import StarknetIdNft, StarkVerseNft
+from starknet_degensoft.starknet_dmail import StarknetDmail
 from starknet_degensoft.starknet_trader import StarknetTrader, TraderThread
 from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
     mask_hex_in_string
@@ -152,9 +153,14 @@ class MainWindow(QMainWindow):
         'fibrous': {'name': 'Fibrous', 'cls': FibrousSwap},
     }
 
-    nft = {
-        'starknet.id': {'name': StarknetIdNft.project_name, 'cls': StarknetIdNft},
-        'starkverse.art': {'name': StarkVerseNft.project_name, 'cls': StarkVerseNft},
+    dapps = {
+        'NFT': {
+            'starknet.id': {'name': StarknetIdNft.project_name, 'cls': StarknetIdNft},
+            'starkverse.art': {'name': StarkVerseNft.project_name, 'cls': StarkVerseNft},
+        },
+        'dApps': {
+            'dmail': {'name': StarknetDmail.project_name, 'cls': StarknetDmail}
+        }
     }
 
     messages = {
@@ -183,6 +189,7 @@ class MainWindow(QMainWindow):
             'wallet_delay_max_sec_label': "max sec:",
             'project_delay_max_sec_label': "max sec:",
             'random_swap_checkbox': "Random project (from selected above)",
+            'random_dapp_checkbox': "Random project (from selected above)",
             'min_eth_label': "min ETH:",
             'max_eth_label': "max ETH:",
             'amount_type_label': "Select amount in:",
@@ -222,7 +229,7 @@ class MainWindow(QMainWindow):
             "settings_tab": "Settings",
             "projects_tab": "Swaps",
             "bridges_tab": "Bridges",
-            "nft_tab": "NFT",
+            "dapps_tab": "dApps",
             "logs_tab": "Logs",
         },
         'ru': {
@@ -250,6 +257,7 @@ class MainWindow(QMainWindow):
             'wallet_delay_max_sec_label': "макс сек:",
             'project_delay_max_sec_label': "макс сек:",
             'random_swap_checkbox': "Рандомный проект (из отмеченных выше)",
+            'random_dapp_checkbox': "Рандомный проект (из отмеченных выше)",
             'min_eth_label': "мин ETH:",
             'max_eth_label': "макс ETH:",
             'min_price_label': "Минимальная сумма, $:",
@@ -289,7 +297,7 @@ class MainWindow(QMainWindow):
             "settings_tab": "Настройки",
             "projects_tab": "Свапы",
             "bridges_tab": "Мосты",
-            "nft_tab": "NFT",
+            "dapps_tab": "dApps",
             "logs_tab": "Логи",
         }
     }
@@ -371,10 +379,10 @@ class MainWindow(QMainWindow):
         logs_tab = QWidget()
         projects_tab = QWidget()
         bridges_tab = QWidget()
-        nft_tab = QWidget()
+        dapps_tab = QWidget()
         self.projects_tab = projects_tab
         self.bridges_tab = bridges_tab
-        self.nft_tab = nft_tab
+        self.dapps_tab = dapps_tab
 
         projects_layout = QVBoxLayout()
         projects_tab.setLayout(projects_layout)
@@ -384,8 +392,8 @@ class MainWindow(QMainWindow):
         settings_tab.setLayout(settings_layout)
         log_layout = QVBoxLayout()
         logs_tab.setLayout(log_layout)
-        nft_layout = QVBoxLayout()
-        nft_tab.setLayout(nft_layout)
+        dapps_layout = QVBoxLayout()
+        dapps_tab.setLayout(dapps_layout)
 
         bold_font = QFont()
         bold_font.setBold(True)
@@ -680,19 +688,29 @@ class MainWindow(QMainWindow):
         swap_settings_layout.addWidget(rest_label, 3, 0, 1, 1)
         swap_settings_layout.addWidget(rest_spinbox, 3, 1, 1, 1)
 
-        # nft tab
-        quests_label_2 = self.widgets_tr['quests_label_2'] = QLabel()
-        quests_label_2.setFont(bold_font)
-        nft_layout.addWidget(quests_label_2)
+        # dapps tab
+        # quests_label_2 = self.widgets_tr['quests_label_2'] = QLabel()
+        # quests_label_2.setFont(bold_font)
+        # dapps_layout.addWidget(quests_label_2)
 
-        for key in self.nft:
-            nft_project_layout = QHBoxLayout()
-            nft_checkbox = QCheckBox(self.nft[key]['name'])
-            nft_checkbox.setChecked(True)
-            nft_project_layout.addWidget(nft_checkbox)
-            self.widgets_config[f'nft_{key}_checkbox'] = nft_checkbox
-            self.nft[key]['checkbox'] = nft_checkbox
-            nft_layout.addLayout(nft_project_layout)
+        for key in self.dapps:
+            title_lable = QLabel()
+            title_lable.setFont(bold_font)
+            title_lable.setText(key)
+            dapps_layout.addWidget(title_lable)
+            for key1 in self.dapps[key]:
+                dapp_project_layout = QHBoxLayout()
+                dapp_checkbox = QCheckBox(self.dapps[key][key1]['name'])
+                dapp_checkbox.setChecked(True)
+                dapp_project_layout.addWidget(dapp_checkbox)
+                self.widgets_config[f'dapp_{key1}_checkbox'] = dapp_checkbox
+                self.dapps[key][key1]['checkbox'] = dapp_checkbox
+                dapps_layout.addLayout(dapp_project_layout)
+            if key == 'NFT':
+                random_dapp_checkbox = QCheckBox()
+                self.widgets_tr['random_dapp_checkbox'] = random_dapp_checkbox
+                self.widgets_config['random_dapp_checkbox'] = random_dapp_checkbox
+                dapps_layout.addWidget(random_dapp_checkbox)
 
         # options tab
 
@@ -759,12 +777,12 @@ class MainWindow(QMainWindow):
         settings_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         projects_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         bridges_tab_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
-        nft_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        dapps_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.tab_widget.addTab(settings_tab, "Settings")
         self.tab_widget.addTab(bridges_tab, "Bridges")
         self.tab_widget.addTab(projects_tab, "Projects")
-        self.tab_widget.addTab(nft_tab, "NFT")
+        self.tab_widget.addTab(dapps_tab, "NFT")
         self.tab_widget.addTab(logs_tab, "Logs")
 
         central_widget = QWidget()
@@ -792,7 +810,7 @@ class MainWindow(QMainWindow):
         self.tab_widget.setTabText(0, self.tr(self.messages[self.language].get('settings_tab')))
         self.tab_widget.setTabText(1, self.tr(self.messages[self.language].get('bridges_tab')))
         self.tab_widget.setTabText(2, self.tr(self.messages[self.language].get('projects_tab')))
-        self.tab_widget.setTabText(3, self.tr(self.messages[self.language].get('nft_tab')))
+        self.tab_widget.setTabText(3, self.tr(self.messages[self.language].get('dapps_tab')))
         self.tab_widget.setTabText(4, self.tr(self.messages[self.language].get('logs_tab')))
         for widget_name in self.widgets_tr:
             if widget_name not in self.messages[self.language]:
@@ -870,7 +888,7 @@ class MainWindow(QMainWindow):
                 self.show_error_message(self.messages[self.language]['minmax_percent_error'])
                 return
         for key in self.swaps:
-            if self.swaps[key]['checkbox'].isEnabled():
+            if self.swaps[key]['checkbox'].isChecked():
                 if not (0 < conf['min_price_selector'] <= conf['max_price_selector']):
                     self.show_error_message(self.messages[self.language]['minmax_usd_error'])
                     return
@@ -912,7 +930,7 @@ class MainWindow(QMainWindow):
         self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api,
                                           config=conf, configs=configs,
                                           bridges=self.bridges, back_bridges=self.back_bridges,
-                                          swaps=self.swaps, nft=self.nft)
+                                          swaps=self.swaps, dapps=self.dapps)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
         # self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
@@ -948,7 +966,7 @@ class MainWindow(QMainWindow):
     def on_use_configs_changed(self):
         self.bridges_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
         self.projects_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
-        self.nft_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
+        self.dapps_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
 
     def on_bridge_checkbox_clicked(self):
         for key in self.bridges:
@@ -961,8 +979,8 @@ class MainWindow(QMainWindow):
         for key in self.swaps:
             self.swaps[key]['checkbox'].setDisabled(disabled)
         self.projects_tab.setDisabled(disabled)
-        self.nft_tab.setDisabled(disabled)
-        self.widgets_config['random_swap_checkbox'].setDisabled(disabled)
+        self.dapps_tab.setDisabled(disabled)
+        # self.widgets_config['random_swap_checkbox'].setDisabled(disabled)
 
     def on_open_file_clicked(self):
         options = QFileDialog.Options()
