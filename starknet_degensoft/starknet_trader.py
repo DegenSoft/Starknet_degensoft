@@ -193,6 +193,7 @@ class StarknetTrader:
     def __init__(self, config: Config, testnet=False):
         self.config = config
         self.paused = False
+        self._success_counter = 0
         self.stopped = False
         self.testnet = testnet
         self._api = None
@@ -302,6 +303,7 @@ class StarknetTrader:
             if self.stopped:
                 break
             starknet_address = hex(account.starknet_account.address)
+            self._success_counter = 0
             is_deployed = None
             for attempt_ in range(3):
                 try:
@@ -445,7 +447,7 @@ class StarknetTrader:
                 if j < len(projects):
                     self.process_pause(random.randint(*project_delay))
                     # self.random_delay(project_delay)
-            if i < len(self.accounts):
+            if i < len(self.accounts) and self._success_counter:
                 # self.random_delay(wallet_delay)
                 self.process_pause(random.randint(*wallet_delay))
 
@@ -529,6 +531,7 @@ class StarknetTrader:
         bridge = LayerswapBridge(testnet=self.testnet)
         tx_hash = bridge.deposit(account=account, amount=amount, to_l2_address=hex(starknet_account.address))
         self.logger.info(node.get_explorer_transaction_url(tx_hash))
+        self._success_counter += 1
         return tx_hash.hex()
 
     @action_decorator('bridge')
@@ -566,6 +569,7 @@ class StarknetTrader:
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
             self.starknet_client.wait_for_tx_sync(int(tx_hash, base=16), check_interval=5)
+        self._success_counter += 1
         return tx_hash
 
     @action_decorator('bridge')
@@ -580,6 +584,7 @@ class StarknetTrader:
                                  to_l2_address=hex(starknet_account.address))
         self.logger.info(node.get_explorer_transaction_url(tx_hash))
         self.logger.info(self.get_tx_url('').replace('/tx/', f'/eth-tx/{tx_hash.hex()}'))
+        self._success_counter += 1
         return tx_hash.hex()
 
     @action_decorator('swap')
@@ -592,6 +597,7 @@ class StarknetTrader:
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
             self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=5)
+        self._success_counter += 1
         return hex(res.transaction_hash)
 
     @action_decorator('nft')
@@ -602,4 +608,5 @@ class StarknetTrader:
         if wait_for_tx and not self.stopped:
             self.logger.debug('Waiting for tx confirmation...')
             self.starknet_client.wait_for_tx_sync(res.transaction_hash, check_interval=5)
+        self._success_counter += 1
         return hex(res.transaction_hash)
