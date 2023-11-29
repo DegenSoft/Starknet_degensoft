@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import time
+import traceback
 
 from PyQt5.Qt import QDesktopServices, QUrl, Qt, QTextCursor
 from PyQt5.QtCore import pyqtSignal, QMetaObject
@@ -17,6 +18,8 @@ from starknet_degensoft.api_client2 import DegenSoftApiClient
 from starknet_degensoft.config import Config
 from starknet_degensoft.layerswap import LayerswapBridge
 from starknet_degensoft.starkgate import StarkgateBridge
+from starknet_degensoft.starknet_dmail import StarknetDmail
+from starknet_degensoft.starknet_nft import StarknetIdNft, StarkVerseNft
 from starknet_degensoft.starknet_swap import MyswapSwap, TenKSwap, JediSwap, SithSwap, AvnuSwap, FibrousSwap
 from starknet_degensoft.starknet_trader import StarknetTrader, TraderThread
 from starknet_degensoft.utils import setup_file_logging, log_formatter, convert_urls_to_links, \
@@ -55,6 +58,7 @@ def setup_gui_loging(logger, callback, formatter=log_formatter):
     formatter = log_formatter
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+
 
 class MyQTextEdit(QTextEdit):
 
@@ -95,7 +99,7 @@ class PasswordDialog(QDialog):
         self.buttonBox.setAutoFillBackground(False)
         # self.buttonBox.setLocale(QtCore.QLocale(QtCore.QLocale.Russian, QtCore.QLocale.RussianFederation))
         self.buttonBox.setOrientation(Qt.Horizontal)
-        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel|QDialogButtonBox.Ok)
+        self.buttonBox.setStandardButtons(QDialogButtonBox.Cancel | QDialogButtonBox.Ok)
         self.buttonBox.setObjectName("buttonBox")
         self.verticalLayout.addWidget(self.buttonBox)
 
@@ -151,6 +155,16 @@ class MainWindow(QMainWindow):
         'fibrous': {'name': 'Fibrous', 'cls': FibrousSwap},
     }
 
+    dapps = {
+        'NFT': {
+            'starknet.id': {'name': StarknetIdNft.project_name, 'cls': StarknetIdNft},
+            'starkverse.art': {'name': StarkVerseNft.project_name, 'cls': StarkVerseNft},
+        },
+        'dApps': {
+            'dmail': {'name': StarknetDmail.project_name, 'cls': StarknetDmail}
+        }
+    }
+
     messages = {
         'en': {
             'window_title': "Starknet [DEGENSOFT]",
@@ -161,6 +175,7 @@ class MainWindow(QMainWindow):
             'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
             'back_bridges_label': "Select bridge and destination network to withdraw ETH from Starknet",
             'quests_label': "Select projects",
+            'quests_label_2': "Select projects",
             'backswaps_label': "Back swap tokens to ETH",
             'backswaps_checkbox': "Make swap tokens to ETH",
             'backswaps_usd_label': "Minimum token USD price:",
@@ -176,6 +191,7 @@ class MainWindow(QMainWindow):
             'wallet_delay_max_sec_label': "max sec:",
             'project_delay_max_sec_label': "max sec:",
             'random_swap_checkbox': "Random project (from selected above)",
+            'random_dapp_checkbox': "Random project (from selected below)",
             'min_eth_label': "min ETH:",
             'max_eth_label': "max ETH:",
             'amount_type_label': "Select amount in:",
@@ -215,6 +231,7 @@ class MainWindow(QMainWindow):
             "settings_tab": "Settings",
             "projects_tab": "Swaps",
             "bridges_tab": "Bridges",
+            "dapps_tab": "dApps",
             "logs_tab": "Logs",
         },
         'ru': {
@@ -226,6 +243,7 @@ class MainWindow(QMainWindow):
             'bridges_label': "Выберите мост и сеть в которой у вас есть ETH для перевода в Starknet",
             'back_bridges_label': "Выберите мост и сеть в которую переводить ETH из Starknet",
             'quests_label': "Выберите проекты",
+            'quests_label_2': "Выберите проекты",
             'backswaps_label': "Обмен токенов обратно в ETH",
             'backswaps_checkbox': "Сделать свап токенов в ETH",
             'backswaps_usd_label': "Минимальная цена токена в USD:",
@@ -241,6 +259,7 @@ class MainWindow(QMainWindow):
             'wallet_delay_max_sec_label': "макс сек:",
             'project_delay_max_sec_label': "макс сек:",
             'random_swap_checkbox': "Рандомный проект (из отмеченных выше)",
+            'random_dapp_checkbox': "Рандомный проект (из отмеченных ниже)",
             'min_eth_label': "мин ETH:",
             'max_eth_label': "макс ETH:",
             'min_price_label': "Минимальная сумма, $:",
@@ -280,6 +299,7 @@ class MainWindow(QMainWindow):
             "settings_tab": "Настройки",
             "projects_tab": "Свапы",
             "bridges_tab": "Мосты",
+            "dapps_tab": "dApps",
             "logs_tab": "Логи",
         }
     }
@@ -306,9 +326,6 @@ class MainWindow(QMainWindow):
             for bridge_name in self.bridges:
                 self.messages[lang][f'min_eth_{bridge_name}_label'] = self.messages[lang]['min_eth_label']
                 self.messages[lang][f'max_eth_{bridge_name}_label'] = self.messages[lang]['max_eth_label']
-            # for swap_name in self.swaps:
-            #     self.messages[lang][f'min_price_{swap_name}_label'] = self.messages[lang]['min_price_label']
-            #     self.messages[lang][f'max_price_{swap_name}_label'] = self.messages[lang]['max_price_label']
         self.widgets_tr = {}
         self.widgets_config = {}
         self.language = 'en'
@@ -364,8 +381,10 @@ class MainWindow(QMainWindow):
         logs_tab = QWidget()
         projects_tab = QWidget()
         bridges_tab = QWidget()
+        dapps_tab = QWidget()
         self.projects_tab = projects_tab
         self.bridges_tab = bridges_tab
+        self.dapps_tab = dapps_tab
 
         projects_layout = QVBoxLayout()
         projects_tab.setLayout(projects_layout)
@@ -375,6 +394,8 @@ class MainWindow(QMainWindow):
         settings_tab.setLayout(settings_layout)
         log_layout = QVBoxLayout()
         logs_tab.setLayout(log_layout)
+        dapps_layout = QVBoxLayout()
+        dapps_tab.setLayout(dapps_layout)
 
         bold_font = QFont()
         bold_font.setBold(True)
@@ -669,6 +690,30 @@ class MainWindow(QMainWindow):
         swap_settings_layout.addWidget(rest_label, 3, 0, 1, 1)
         swap_settings_layout.addWidget(rest_spinbox, 3, 1, 1, 1)
 
+        # dapps tab
+        # quests_label_2 = self.widgets_tr['quests_label_2'] = QLabel()
+        # quests_label_2.setFont(bold_font)
+        # dapps_layout.addWidget(quests_label_2)
+
+        random_dapp_checkbox = QCheckBox()
+        self.widgets_tr['random_dapp_checkbox'] = random_dapp_checkbox
+        self.widgets_config['random_dapp_checkbox'] = random_dapp_checkbox
+        dapps_layout.addWidget(random_dapp_checkbox)
+        for key in self.dapps:
+            title_lable = QLabel()
+            title_lable.setFont(bold_font)
+            title_lable.setText(key)
+            dapps_layout.addWidget(title_lable)
+            for key1 in self.dapps[key]:
+                dapp_project_layout = QHBoxLayout()
+                dapp_checkbox = QCheckBox(self.dapps[key][key1]['name'])
+                dapp_checkbox.setChecked(True)
+                dapp_project_layout.addWidget(dapp_checkbox)
+                self.widgets_config[f'dapp_{key1}_checkbox'] = dapp_checkbox
+                self.dapps[key][key1]['checkbox'] = dapp_checkbox
+                dapps_layout.addLayout(dapp_project_layout)
+
+        # options tab
         options_label = QLabel()
         options_label.setFont(bold_font)
         self.widgets_tr['options_label'] = options_label
@@ -732,10 +777,12 @@ class MainWindow(QMainWindow):
         settings_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         projects_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
         bridges_tab_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
+        dapps_layout.addItem(QSpacerItem(20, 20, QSizePolicy.Minimum, QSizePolicy.Expanding))
 
         self.tab_widget.addTab(settings_tab, "Settings")
         self.tab_widget.addTab(bridges_tab, "Bridges")
         self.tab_widget.addTab(projects_tab, "Projects")
+        self.tab_widget.addTab(dapps_tab, "NFT")
         self.tab_widget.addTab(logs_tab, "Logs")
 
         central_widget = QWidget()
@@ -763,7 +810,8 @@ class MainWindow(QMainWindow):
         self.tab_widget.setTabText(0, self.tr(self.messages[self.language].get('settings_tab')))
         self.tab_widget.setTabText(1, self.tr(self.messages[self.language].get('bridges_tab')))
         self.tab_widget.setTabText(2, self.tr(self.messages[self.language].get('projects_tab')))
-        self.tab_widget.setTabText(3, self.tr(self.messages[self.language].get('logs_tab')))
+        self.tab_widget.setTabText(3, self.tr(self.messages[self.language].get('dapps_tab')))
+        self.tab_widget.setTabText(4, self.tr(self.messages[self.language].get('logs_tab')))
         for widget_name in self.widgets_tr:
             if widget_name not in self.messages[self.language]:
                 continue
@@ -840,7 +888,7 @@ class MainWindow(QMainWindow):
                 self.show_error_message(self.messages[self.language]['minmax_percent_error'])
                 return
         for key in self.swaps:
-            if self.swaps[key]['checkbox'].isEnabled():
+            if self.swaps[key]['checkbox'].isChecked():
                 if not (0 < conf['min_price_selector'] <= conf['max_price_selector']):
                     self.show_error_message(self.messages[self.language]['minmax_usd_error'])
                     return
@@ -879,8 +927,10 @@ class MainWindow(QMainWindow):
             configs['repeat_count'] = int(self.widgets_config['repeat_count'].text() or 1)
             configs['file_names'] = self.config_file_names
 
-        self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api, config=conf, configs=configs,
-                                          swaps=self.swaps, bridges=self.bridges, back_bridges=self.back_bridges)
+        self.worker_thread = TraderThread(trader=self.trader, api=degensoft_api,
+                                          config=conf, configs=configs,
+                                          bridges=self.bridges, back_bridges=self.back_bridges,
+                                          swaps=self.swaps, dapps=self.dapps)
         self.worker_thread.task_completed.connect(self.on_thread_task_completed)
         # self.worker_thread.logger_signal.connect(self._log)
         self.worker_thread.start()
@@ -914,9 +964,9 @@ class MainWindow(QMainWindow):
         self.widgets_config['api_key'].setEchoMode(echo_mode)
 
     def on_use_configs_changed(self):
-        # self.hide_widget.setHidden(self.widgets_config['use_configs_checkbox'].isChecked())
         self.bridges_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
         self.projects_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
+        self.dapps_tab.setDisabled(self.widgets_config['use_configs_checkbox'].isChecked())
 
     def on_bridge_checkbox_clicked(self):
         for key in self.bridges:
@@ -928,7 +978,9 @@ class MainWindow(QMainWindow):
     def _set_swap_checkboxes(self, disabled: bool):
         for key in self.swaps:
             self.swaps[key]['checkbox'].setDisabled(disabled)
-        self.widgets_config['random_swap_checkbox'].setDisabled(disabled)
+        self.projects_tab.setDisabled(disabled)
+        self.dapps_tab.setDisabled(disabled)
+        # self.widgets_config['random_swap_checkbox'].setDisabled(disabled)
 
     def on_open_file_clicked(self):
         options = QFileDialog.Options()
@@ -959,11 +1011,12 @@ class MainWindow(QMainWindow):
         options = QFileDialog.Options()
         options |= QFileDialog.DontUseNativeDialog
         file_name, _ = QFileDialog.getOpenFileNames(self, "Select configs", "", "All Files (*);;JSON Files (*.json)",
-                                                   options=options)
+                                                    options=options)
         if file_name:
             self.config_file_names = file_name
             self.logger.debug(f'Config files selected: {" ".join(file_name)}')
-            self.widgets_config['selected_configs_entry'].setText(", ".join(list(map(lambda x: os.path.basename(x), file_name))))
+            self.widgets_config['selected_configs_entry'].setText(
+                ", ".join(list(map(lambda x: os.path.basename(x), file_name))))
 
     def closeEvent(self, event):
         self.config.gui_config = self.get_config(check_enabled_widget=True)
@@ -973,14 +1026,25 @@ class MainWindow(QMainWindow):
         QDesktopServices.openUrl(url)
 
 
-def main():
+def show_exception_message(exception):
     app = QApplication(sys.argv)
-    # app.setStyle(QStyleFactory.create('Windows'))
-    main_window = MainWindow()
-    main_window.setMinimumSize(650, 600)
-    frame_geometry = main_window.frameGeometry()
-    center_point = QDesktopWidget().availableGeometry().center()
-    frame_geometry.moveCenter(center_point)
-    main_window.move(frame_geometry.topLeft())
-    main_window.show()
-    sys.exit(app.exec_())
+    error_message = (f"An exception occurred:\n\n{type(exception).__name__}: {str(exception)}"
+                     f"\n\nTraceback:\n{traceback.format_exc()}")
+    QMessageBox.critical(None, 'Error', error_message, QMessageBox.Ok)
+    app.quit()
+
+
+def main():
+    try:
+        app = QApplication(sys.argv)
+        # app.setStyle(QStyleFactory.create('Windows'))
+        main_window = MainWindow()
+        main_window.setMinimumSize(650, 600)
+        frame_geometry = main_window.frameGeometry()
+        center_point = QDesktopWidget().availableGeometry().center()
+        frame_geometry.moveCenter(center_point)
+        main_window.move(frame_geometry.topLeft())
+        main_window.show()
+        sys.exit(app.exec_())
+    except Exception as ex:
+        return show_exception_message(ex)

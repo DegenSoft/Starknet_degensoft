@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 from functools import cached_property
-from asgiref.sync import async_to_sync
 
-from starknet_py.contract import Contract
 from asgiref.sync import async_to_sync
+from starknet_py.contract import Contract
 from starknet_py.net.account.account import Account as StarknetAccount
 
 from starknet_degensoft.utils import uniswap_v2_calculate_tokens_and_price
@@ -110,9 +109,6 @@ class BaseSwap:
 
     def swap_eth_to_token(self, amount, token_address, slippage=2.0):
         raise NotImplementedError()
-
-    # def _calculate_token_b_amount(self):
-    #     raise NotImplementedError()
 
 
 class AsyncBaseSwap(BaseSwap):
