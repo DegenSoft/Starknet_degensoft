@@ -33,9 +33,13 @@ class ArgentXUpdater:
                 return True
             return False
         except ClientError as ex:
+            if 'StarknetErrorCode.UNINITIALIZED_CONTRACT' in ex.message:
+                return False
             if 'StarknetErrorCode.ENTRY_POINT_NOT_FOUND_IN_CONTRACT' in ex.message:
                 return False
             if 'Invalid message selector' in ex.message:
+                return False
+            if 'Contract not found' in ex.message:
                 return False
             raise ex
 

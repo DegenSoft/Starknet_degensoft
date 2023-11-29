@@ -124,28 +124,6 @@ class LayerswapBridge:
             raise RuntimeError(response_data)
         return response_data['data'][0]
 
-    # def get_deposit_data_old(self, account: Union[Account, StarknetAccount], to_network):
-    #     if type(account) == Account:
-    #         chain_id = account.web3.eth.chain_id
-    #         from_address = account.address
-    #     else:
-    #         chain_id = str(account._chain_id)
-    #         from_address = hex(account.address)
-    #     try:
-    #         from_network = self.CHAIN_ID_TO_SOURCE_NETWORK[chain_id]
-    #     except KeyError:
-    #         raise ValueError(f'bad source network with chain_id={chain_id}')
-    #     auth_header = self._get_authorization_header()
-    #     to_network = self.NETWORK_TO_LS_NAME.get(to_network, to_network)
-    #     # hack to get min_amount, max_amount and fee_amount
-    #     r = self._get_swap_response(from_network=from_network, to_network=to_network, amount=0.000000001,
-    #                                 from_address=from_address, to_address='0x0', auth_header=auth_header)
-    #     json_data = r.json()
-    #     if 'error' in json_data:
-    #         return r.json()['error']['metadata']
-    #     else:
-    #         raise RuntimeError(json_data)
-
     def deposit(
             self, account: Union[Account, StarknetAccount],
             amount: Union[float, Decimal],

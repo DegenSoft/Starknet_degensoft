@@ -315,7 +315,7 @@ class StarknetTrader:
                     self.logger.error(ex)
                     self.logger.info('retry')
             if is_deployed is None:
-                self.logger.info(f'Starknet Account {hex(account.starknet_account.address)}')
+                self.logger.info(f'Starknet Account {i}/{len(self.accounts)} {hex(account.starknet_account.address)}')
                 self.logger.error('could not get account balance and deploy status, probably RPC error')
                 continue
             try:
