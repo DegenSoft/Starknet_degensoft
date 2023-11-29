@@ -318,11 +318,12 @@ class StarknetTrader:
                 self.logger.info(f'Starknet Account {i}/{len(self.accounts)} {hex(account.starknet_account.address)}')
                 self.logger.error('could not get account balance and deploy status, probably RPC error')
                 continue
-            try:
-                ArgentXUpdater(account.starknet_account, logger=self.logger).auto_update_sync()
-            except Exception as ex:
-                self.logger.error(ex)
-                continue
+            if is_deployed:
+                try:
+                    ArgentXUpdater(account.starknet_account, logger=self.logger).auto_update_sync()
+                except Exception as ex:
+                    self.logger.error(ex)
+                    continue
 
             # choosing random SWAP project and uniq order
             other_projects = []
