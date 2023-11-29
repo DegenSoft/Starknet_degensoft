@@ -170,7 +170,7 @@ class TraderThread(QThread):
         self.trader.run(projects=projects, wallet_delay=wallet_delay,
                         project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
                         random_swap_project=self.config['random_swap_checkbox'],
-                        random_nft_project=self.config['random_dapp_checkbox'],
+                        random_dapp_project=self.config['random_dapp_checkbox'],
                         api=self.api,
                         gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None,
                         slippage=self.config.get('slippage_spinbox', 1.0),
@@ -286,7 +286,7 @@ class StarknetTrader:
             project_delay: tuple = (0, 0),
             shuffle: bool = False,
             random_swap_project: bool = False,
-            random_nft_project: bool = False,
+            random_dapp_project: bool = False,
             api: DegenSoftApiClient = None,
             gas_limit: int = None,
             slippage: float = 1.0,
@@ -328,28 +328,24 @@ class StarknetTrader:
             other_projects = []
             bridge_projects = []
             swap_projects = []
-            nft_projects = []
+            dapp_projects = []
             dapp_projects = []
             for k, project in enumerate(projects, 1):
                 if not project['cls']:
                     other_projects.append(project)
                 elif issubclass(project['cls'], BaseSwap):
                     swap_projects.append(project)
-                elif issubclass(project['cls'], BaseDapp):
-                    dapp_projects.append(project)
                 elif issubclass(project['cls'], BaseNft):
-                    nft_projects.append(project)
+                    dapp_projects.append(project)
                 elif project['cls'] == StarkgateBridge or project['cls'] == LayerswapBridge:
                     bridge_projects.append(project)
             random.shuffle(swap_projects)
             if random_swap_project:
                 swap_projects = swap_projects[:1]
-            random.shuffle(nft_projects)
-            if random_nft_project:
-                nft_projects = nft_projects[:1]
-            dapp_nft_projects = nft_projects + dapp_projects
-            random.shuffle(dapp_nft_projects)
-            unique_projects = swap_projects + other_projects + dapp_nft_projects + bridge_projects
+            random.shuffle(dapp_projects)
+            if random_dapp_project:
+                dapp_projects = dapp_projects[:1]
+            unique_projects = swap_projects + other_projects + dapp_projects + bridge_projects
 
             for j, project in enumerate(unique_projects, 1):
                 # print(j, project)
@@ -444,11 +440,9 @@ class StarknetTrader:
                                                     destination_network=project['network'],
                                                     amount_percent=random_percent,
                                                     wait_for_tx=wait_for_tx)
-                if j < len(projects):
+                if j < len(projects) and self._success_counter:
                     self.process_pause(random.randint(*project_delay))
-                    # self.random_delay(project_delay)
             if i < len(self.accounts) and self._success_counter:
-                # self.random_delay(wallet_delay)
                 self.process_pause(random.randint(*wallet_delay))
 
     def get_account(self, address, private_key) -> StarknetAccount:

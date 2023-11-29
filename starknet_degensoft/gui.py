@@ -191,7 +191,7 @@ class MainWindow(QMainWindow):
             'wallet_delay_max_sec_label': "max sec:",
             'project_delay_max_sec_label': "max sec:",
             'random_swap_checkbox': "Random project (from selected above)",
-            'random_dapp_checkbox': "Random project (from selected above)",
+            'random_dapp_checkbox': "Random project (from selected below)",
             'min_eth_label': "min ETH:",
             'max_eth_label': "max ETH:",
             'amount_type_label': "Select amount in:",
@@ -259,7 +259,7 @@ class MainWindow(QMainWindow):
             'wallet_delay_max_sec_label': "макс сек:",
             'project_delay_max_sec_label': "макс сек:",
             'random_swap_checkbox': "Рандомный проект (из отмеченных выше)",
-            'random_dapp_checkbox': "Рандомный проект (из отмеченных выше)",
+            'random_dapp_checkbox': "Рандомный проект (из отмеченных ниже)",
             'min_eth_label': "мин ETH:",
             'max_eth_label': "макс ETH:",
             'min_price_label': "Минимальная сумма, $:",
@@ -695,6 +695,10 @@ class MainWindow(QMainWindow):
         # quests_label_2.setFont(bold_font)
         # dapps_layout.addWidget(quests_label_2)
 
+        random_dapp_checkbox = QCheckBox()
+        self.widgets_tr['random_dapp_checkbox'] = random_dapp_checkbox
+        self.widgets_config['random_dapp_checkbox'] = random_dapp_checkbox
+        dapps_layout.addWidget(random_dapp_checkbox)
         for key in self.dapps:
             title_lable = QLabel()
             title_lable.setFont(bold_font)
@@ -708,14 +712,8 @@ class MainWindow(QMainWindow):
                 self.widgets_config[f'dapp_{key1}_checkbox'] = dapp_checkbox
                 self.dapps[key][key1]['checkbox'] = dapp_checkbox
                 dapps_layout.addLayout(dapp_project_layout)
-            if key == 'NFT':
-                random_dapp_checkbox = QCheckBox()
-                self.widgets_tr['random_dapp_checkbox'] = random_dapp_checkbox
-                self.widgets_config['random_dapp_checkbox'] = random_dapp_checkbox
-                dapps_layout.addWidget(random_dapp_checkbox)
 
         # options tab
-
         options_label = QLabel()
         options_label.setFont(bold_font)
         self.widgets_tr['options_label'] = options_label
