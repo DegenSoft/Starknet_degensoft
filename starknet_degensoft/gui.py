@@ -332,6 +332,7 @@ class MainWindow(QMainWindow):
         self.init_ui()
         self.retranslate_ui()
         self.load_config()
+        self.connect_signals()
         self.trader = StarknetTrader(config=self.config, testnet=self.config.testnet)
 
     def load_config(self):
@@ -352,6 +353,14 @@ class MainWindow(QMainWindow):
                 widget.setValue(value)
         self.file_name = self.config.gui_config.file_name
         self.on_bridge_checkbox_clicked()
+
+    def connect_signals(self):
+        self.widgets_config['gas_limit_checkbox'].stateChanged.connect(self.update_config)
+        self.widgets_config['gas_limit_spinner'].valueChanged.connect(self.update_config)
+        self.widgets_config['wallet_delay_min_sec'].valueChanged.connect(self.update_config)
+        self.widgets_config['wallet_delay_max_sec'].valueChanged.connect(self.update_config)
+        self.widgets_config['project_delay_min_sec'].valueChanged.connect(self.update_config)
+        self.widgets_config['project_delay_max_sec'].valueChanged.connect(self.update_config)
 
     def get_config(self, check_enabled_widget=False):
         gui_config = {}
@@ -447,7 +456,6 @@ class MainWindow(QMainWindow):
 
         gas_limit_layout = QHBoxLayout()
         gas_limit_checkbox = QCheckBox("Ethereum gas limit")
-        # gas_limit_checkbox.setChecked(False)
         gas_limit_spinner = QSpinBox()
         gas_limit_spinner.setRange(1, 1000)
         gas_limit_gwei_label = QLabel('gwei')
@@ -1018,8 +1026,11 @@ class MainWindow(QMainWindow):
             self.widgets_config['selected_configs_entry'].setText(
                 ", ".join(list(map(lambda x: os.path.basename(x), file_name))))
 
-    def closeEvent(self, event):
+    def update_config(self):
         self.config.gui_config = self.get_config(check_enabled_widget=True)
+
+    def closeEvent(self, event):
+        self.update_config()
         self.config.save(self.CONFIG_FILENAME)
 
     def handle_links(self, url):
