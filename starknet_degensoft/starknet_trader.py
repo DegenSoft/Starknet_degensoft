@@ -167,12 +167,14 @@ class TraderThread(QThread):
             projects.append(dict(cls=None,
                                  count=self.config['backswaps_count_spinbox'],
                                  amount_usd=self.config['backswaps_usd_spinbox']))
-        self.trader.run(projects=projects, wallet_delay=wallet_delay,
-                        project_delay=swap_delay, shuffle=self.config['shuffle_checkbox'],
+        self.trader.run(projects=projects,
+                        # wallet_delay=wallet_delay,
+                        # project_delay=swap_delay,
+                        shuffle=self.config['shuffle_checkbox'],
                         random_swap_project=self.config['random_swap_checkbox'],
                         random_dapp_project=self.config['random_dapp_checkbox'],
                         api=self.api,
-                        gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None,
+                        # gas_limit=self.config['gas_limit_spinner'] if self.config['gas_limit_checkbox'] else None,
                         slippage=self.config.get('slippage_spinbox', 1.0),
                         keep_amount_usd=self.config.get('rest_spinbox', 0.0))
 
@@ -263,8 +265,11 @@ class StarknetTrader:
         else:
             return f'https://starkscan.co/contract/{address}'
 
-    def wait_for_gas(self, max_gwei):
+    def wait_for_gas(self):
         while True:
+            if not self.config.data['gui_config']['gas_limit_checkbox']:
+                break
+            max_gwei = self.config.data['gui_config']['gas_limit_spinner']
             try:
                 gwei = Web3.from_wei(self.ethereum_node.gas_price, 'gwei')
             except Exception as ex:
@@ -282,13 +287,13 @@ class StarknetTrader:
 
     def run(self,
             projects: list,
-            wallet_delay: tuple = (0, 0),
-            project_delay: tuple = (0, 0),
+            # wallet_delay: tuple = (0, 0),  # now instant settings
+            # project_delay: tuple = (0, 0),  # now instant settings
             shuffle: bool = False,
             random_swap_project: bool = False,
             random_dapp_project: bool = False,
             api: DegenSoftApiClient = None,
-            gas_limit: int = None,
+            # gas_limit: int = None,  # now instant settings
             slippage: float = 1.0,
             keep_amount_usd: float = 0.0):
         self.paused = False
@@ -330,7 +335,6 @@ class StarknetTrader:
             bridge_projects = []
             swap_projects = []
             dapp_projects = []
-            dapp_projects = []
             for k, project in enumerate(projects, 1):
                 if not project['cls']:
                     other_projects.append(project)
@@ -349,9 +353,7 @@ class StarknetTrader:
             unique_projects = swap_projects + other_projects + dapp_projects + bridge_projects
 
             for j, project in enumerate(unique_projects, 1):
-                # print(j, project)
-                if gas_limit is not None:
-                    self.wait_for_gas(gas_limit)
+                self.wait_for_gas()
                 if self.paused:
                     self.process_pause()
                 if self.stopped:
@@ -442,9 +444,16 @@ class StarknetTrader:
                                                     amount_percent=random_percent,
                                                     wait_for_tx=wait_for_tx)
                 if j < len(projects) and self._success_counter:
-                    self.process_pause(random.randint(*project_delay))
+                    self.process_pause(self.get_delay('project_delay'))
             if i < len(self.accounts) and self._success_counter:
-                self.process_pause(random.randint(*wallet_delay))
+                self.process_pause(self.get_delay('wallet_delay'))
+
+    def get_delay(self, delay_name):
+        delay_min = self.config.data['gui_config'][f'{delay_name}_min_sec']
+        delay_max = self.config.data['gui_config'][f'{delay_name}_max_sec']
+        if delay_max < delay_min:
+            delay_max = delay_min
+        return random.randint(delay_min, delay_max)
 
     def get_account(self, address, private_key) -> StarknetAccount:
         try:
