@@ -1,11 +1,18 @@
 # -*- mode: python ; coding: utf-8 -*-
+import platform
 
+if platform.system() == 'Darwin':
+    binaries = [('venv/lib/python3.11/site-packages/libcrypto_c_exports.dylib', '.')]
+    datas=[('starknet_degensoft/abi', 'starknet_degensoft/abi')]
+else:
+    binaries = [('venv\Lib\site-packages\libcrypto_c_exports.dll', '.')]
+    datas=[('starknet_degensoft\abi', 'starknet_degensoft\abi')]
 
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[('venv/lib/python3.11/site-packages/libcrypto_c_exports.dylib', '.')],
-    datas=[('starknet_degensoft/abi', 'starknet_degensoft/abi')],
+    binaries=binaries,
+    datas=datas,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -35,9 +42,11 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
 )
-app = BUNDLE(
-    exe,
-    name='starknet_degensoft.app',
-    icon='degensoft_icon.icns',
-    bundle_identifier=None,
-)
+
+if platform.system() == 'Darwin':
+    app = BUNDLE(
+        exe,
+        name='starknet_degensoft.app',
+        icon='degensoft_icon.icns',
+        bundle_identifier=None,
+    )
