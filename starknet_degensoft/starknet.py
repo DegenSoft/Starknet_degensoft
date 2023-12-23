@@ -22,15 +22,10 @@ class Account(BaseAccount):
             ))
             return True
         except ClientError as ex:
-            if 'StarknetErrorCode.UNINITIALIZED_CONTRACT' in ex.message:
+            if 'StarknetErrorCode.UNINITIALIZED_CONTRACT' in ex.message or \
+                    'Contract not found' in ex.message:
                 return False
-            elif 'Contract not found' in ex.message:
-                return False
-            if 'StarknetErrorCode.ENTRY_POINT_NOT_FOUND_IN_CONTRACT' in ex.message:
-                return True
-            elif 'Invalid message selector' in ex.message:
-                return True
-            raise ex
+            return True
         # return False
 
 

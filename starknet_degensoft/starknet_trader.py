@@ -319,6 +319,7 @@ class StarknetTrader:
                 except Exception as ex:
                     self.logger.error(ex)
                     self.logger.info('retry')
+                    # raise  # todo: remove
             if is_deployed is None:
                 self.logger.info(f'Starknet Account {i}/{len(self.accounts)} {hex(account.starknet_account.address)}')
                 self.logger.error('could not get account balance and deploy status, probably RPC error')
