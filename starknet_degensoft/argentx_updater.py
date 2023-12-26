@@ -41,7 +41,9 @@ class ArgentXUpdater:
                 return False
             if 'Contract not found' in ex.message:
                 return False
-            raise ex
+            if 'Contract error' in ex.message:
+                return False
+            raise
 
     async def need_update(self):
         version = await self.client.call_contract(Call(

@@ -4,7 +4,7 @@
   "networks": {
     "starknet": {
       "rpc": [
-        "https://alpha-mainnet.starknet.io"
+        "https://starknet-mainnet.public.blastapi.io/"
       ],
       "explorer": "https://starkscan.co/"
     },
@@ -100,9 +100,9 @@
     "max_price_selector": 0.0,
     "slippage_spinbox": 0.1,
     "rest_spinbox": 0.0,
+    "random_dapp_checkbox": false,
     "dapp_starknet.id_checkbox": false,
     "dapp_starkverse.art_checkbox": false,
-    "random_dapp_checkbox": false,
     "dapp_dmail_checkbox": false,
     "wallet_delay_min_sec": 0,
     "wallet_delay_max_sec": 0,
