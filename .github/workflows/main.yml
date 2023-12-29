@@ -30,7 +30,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         files: |
-          /Users/runner/work/Starknet_degensoft/Starknet_degensoft/dist/starknet_degensoft
+          /Users/runner/work/Starknet_degensoft/Starknet_degensoft/dist/starknet_degensoft.dmg
           /Users/runner/work/Starknet_degensoft/Starknet_degensoft/dist/config.json
         title: Release ${{ github.run_number }}
         tag_name: v${{ github.run_number }}
