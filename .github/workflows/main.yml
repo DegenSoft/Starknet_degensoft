@@ -1,0 +1,61 @@
+name: Build Starknet
+
+on:
+  push:
+    branches:
+      - main # Замените на вашу основную ветку
+      - test
+env:
+  GH_TOKEN: ${{ secrets.GH_TOKEN }}
+  CSC_IDENTITY_AUTO_DISCOVERY : false
+jobs:
+  buildMac:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v4.7.1
+      with:
+        python-version: '3.11.0'
+
+    - name: Run Build
+      run: |
+        zsh build_mac.sh
+        
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          /Users/runner/work/Multisender_degensoft/Multisender_degensoft/dist/multisender_degensoft.dmg
+        title: Release ${{ github.run_number }}
+        tag_name: v${{ github.run_number }}
+        
+  buildWin:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v4.7.1
+      with:
+        python-version: '3.11.0'
+
+    - name: Run Build
+      shell: cmd
+      run: |
+        build_full.bat
+        
+    - name: Create Release
+      id: create_release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          D:/a/Multisender_degensoft/Multisender_degensoft/dist/multisender_degensoft.exe
+        title: Release ${{ github.run_number }}
+        tag_name: v${{ github.run_number }}
