@@ -3,6 +3,7 @@ import functools
 import logging
 import os
 import random
+import platform
 import re
 import sys
 from decimal import Decimal
@@ -61,6 +62,8 @@ def random_float(a, b, diff=1):
 
 def setup_file_logging(logger, log_file):
     # logging file handler
+    if(platform.system() == 'Darwin'):
+        log_file = os.path.expanduser(f"~/Desktop/StarkNet/{log_file}")
     file_handler = logging.FileHandler(log_file, mode='a')
     file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(log_formatter)

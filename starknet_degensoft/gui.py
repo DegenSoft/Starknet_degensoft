@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import platform
 import sys
 import time
 import traceback
@@ -115,7 +116,10 @@ class PasswordDialog(QDialog):
 
 
 class MainWindow(QMainWindow):
-    CONFIG_FILENAME = os.environ.get('CONFIG_FILENAME', 'config.json')
+    file_naming_os = 'config.json'
+    if(platform.system() == 'Darwin'):
+        file_naming_os = os.path.expanduser(f"~/Desktop/StarkNet/config.json")
+    CONFIG_FILENAME = os.environ.get('CONFIG_FILENAME', file_naming_os)
     SLAVIK_API_SECRET = ''
 
     file_name = None
