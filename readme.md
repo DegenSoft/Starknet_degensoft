@@ -22,6 +22,16 @@
 
 ![image](https://github.com/slavik-investor/starknetArs/assets/591138/4ccd9fe7-af20-485b-9bbc-d789098b9aca)
 
+## Дополнение в случае совсем чистой Windows 10
+В случае некоторых сборок/ревизий/OEM вариантов поставки OS Windows, запуск проекта может потребовать установки cpp_bindings, проще всего сделать это так:
+* открываем powershell от имени администратора и выполняем там команды:
+``Set-ExecutionPolicy AllSigned``
+ниже команда целиком в ОДНУ СТРОЧКУ:
+``Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))``
+ждем несколько минут пока chocolatey установится
+* ставим mingw
+``choco install mingw``
+* закрываем powershell
 
 # Подготовка
 
