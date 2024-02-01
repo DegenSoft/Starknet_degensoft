@@ -205,7 +205,8 @@ class StarknetTrader:
         self.starknet_client = GatewayClient(rpc_url) if '.starknet.io' in rpc_url else FullNodeClient(rpc_url)
         self.starknet_contracts = self.config.data['starknet_contracts']['goerli' if testnet else 'mainnet'].copy()
         self.starknet_eth_contract = self.starknet_contracts.pop('ETH')
-        self.ethereum_node = Node(rpc_url='https://eth.llamarpc.com', explorer_url='https://etherscan.io/')
+        # self.ethereum_node = Node(rpc_url='https://eth.llamarpc.com', explorer_url='https://etherscan.io/')
+        self.ethereum_node = Node(rpc_url='https://ethereum.publicnode.com', explorer_url='https://etherscan.io/')
         self.logger = logging.getLogger('starknet')
         self.logger.setLevel(logging.DEBUG)
         self.accounts = []
