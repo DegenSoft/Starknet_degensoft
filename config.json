@@ -63,6 +63,7 @@
   "gui_config": {
     "language_selector": 0,
     "api_key": "",
+    "ls_api_key": "",
     "api_key_checkbox": false,
     "decrypt_wallets_label": false,
     "gas_limit_spinner": 100,
