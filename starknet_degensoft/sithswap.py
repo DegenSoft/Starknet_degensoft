@@ -8,7 +8,7 @@ class SithSwap(AsyncBaseSwap):
     swap_name = 'sithswap'
 
     async def get_min_amount_out(self, amount: int, slippage: float, path: list):
-        min_amount_out_data = await self.contract.functions["getAmountOut"].prepare(
+        min_amount_out_data = await self.contract.functions["getAmountOut"].prepare_call(
             amount,
             path[0],
             path[1]
@@ -25,7 +25,7 @@ class SithSwap(AsyncBaseSwap):
         min_amount_out, stable = await self.get_min_amount_out(amount, slippage, path)
         route = [{'from_address': path[0], 'to_address': path[1], 'stable': stable}]
         approve_call = self.get_prepared_approve_tx(amount, token_a_address)
-        swap_call = self.contract.functions['swapExactTokensForTokens'].prepare(
+        swap_call = self.contract.functions['swapExactTokensForTokens'].prepare_call(
             amount_in=amount,
             amount_out_min=min_amount_out,
             routes=route,

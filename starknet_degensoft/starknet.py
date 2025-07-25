@@ -3,7 +3,6 @@ from starknet_py.net.account.account import Account as BaseAccount
 from starknet_py.net.client_errors import ClientError
 from starknet_py.net.client_models import Call
 from starknet_py.net.full_node_client import FullNodeClient as BaseFullNodeClient
-from starknet_py.net.gateway_client import GatewayClient as BaseGatewayClient
 from starknet_py.net.models import parse_address
 from starknet_py.utils.sync import add_sync_methods
 
@@ -33,7 +32,3 @@ class Account(BaseAccount):
 class FullNodeClient(BaseFullNodeClient):
     ...
 
-
-@add_sync_methods
-class GatewayClient(BaseGatewayClient):
-    ...

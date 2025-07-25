@@ -16,6 +16,6 @@ class StarknetDmail(BaseDapp):
     async def mint_async(self):
         email_address = sha256(str(1e10 * random.random()).encode()).hexdigest()
         theme = sha256(str(1e10 * random.random()).encode()).hexdigest()
-        dmail_call = self.contract.functions['transaction'].prepare(email_address[0:31], theme[0:31])
+        dmail_call = self.contract.functions['transaction'].prepare_call(email_address[0:31], theme[0:31])
         invoke = await self.account.sign_invoke_transaction([dmail_call], auto_estimate=True)
         return await self.account.client.send_transaction(invoke)

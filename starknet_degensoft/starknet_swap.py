@@ -51,10 +51,10 @@ class StarknetToken:
         self.contract = Contract(address=token_address, abi=ERC20_ABI, provider=account)
 
     def prepare_approve_tx(self, amount, trade_address):
-        return self.contract.functions['approve'].prepare(spender=int(trade_address, base=16), amount=amount)
+        return self.contract.functions['approve'].prepare_call(spender=int(trade_address, base=16), amount=amount)
 
     def prepare_transfer_tx(self, amount, to_address):
-        return self.contract.functions['transfer'].prepare(recipient=int(to_address, base=16), amount=amount)
+        return self.contract.functions['transfer'].prepare_call(recipient=int(to_address, base=16), amount=amount)
 
     @property
     def address(self):
@@ -97,7 +97,7 @@ class BaseSwap:
             trade_address = self._contract_address
         token_contract = Contract(address=token_address, abi=ERC20_ABI, provider=self.account)
         # token_contract = await Contract.from_address(address=token_address, provider=self.account, proxy_config=True)
-        return token_contract.functions['approve'].prepare(spender=int(trade_address, base=16), amount=amount)
+        return token_contract.functions['approve'].prepare_call(spender=int(trade_address, base=16), amount=amount)
 
     def check_balance(self, amount):
         account_balance = self.account.get_balance_sync()
@@ -171,7 +171,7 @@ class MyswapSwap(BaseSwap):
             fee=pool_data.pool['fee_percentage'] / 1000 / 100)
         amount_to_min = int(amount_to * (1 - slippage / 100.0))
         approve_prepared_tx = token.prepare_approve_tx(amount=amount, trade_address=self._contract_address)
-        swap_prepared_tx = self.contract.functions['swap'].prepare(
+        swap_prepared_tx = self.contract.functions['swap'].prepare_call(
             pool_id=pool_id,
             token_from_addr=token.address,
             amount_from=amount,
@@ -213,7 +213,7 @@ class UniswapForkBaseSwap(BaseSwap):
         res = self.contract.functions[self._amounts_function_name].call_sync(amountIn=amount, path=path)
         amount_out_min = int(res.amounts[1] * (1 - slippage / 100.0))
         approve_prepared_tx = token.prepare_approve_tx(amount=amount, trade_address=self._contract_address)
-        swap_prepared_tx = self.contract.functions[self._swap_function_name].prepare(
+        swap_prepared_tx = self.contract.functions[self._swap_function_name].prepare_call(
             amountIn=amount,
             amountOutMin=amount_out_min,
             path=path,

@@ -30,7 +30,7 @@ class StarknetIdNft(BaseNft):
     project_name = 'starknet.id'
 
     async def mint_async(self):
-        mint_call = self.contract.functions["mint"].prepare(int(random.random() * 1e12))
+        mint_call = self.contract.functions["mint"].prepare_call(int(random.random() * 1e12))
         invoke = await self.account.sign_invoke_transaction([mint_call], auto_estimate=True)
         return await self.account.client.send_transaction(invoke)
 
@@ -40,6 +40,6 @@ class StarkVerseNft(BaseNft):
     project_name = 'starkverse.art'
 
     async def mint_async(self):
-        mint_call = self.contract.functions["publicMint"].prepare(self.account.address)
+        mint_call = self.contract.functions["publicMint"].prepare_call(self.account.address)
         invoke = await self.account.sign_invoke_transaction([mint_call], auto_estimate=True)
         return await self.account.client.send_transaction(invoke)

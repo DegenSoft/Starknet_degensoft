@@ -174,6 +174,7 @@ class MainWindow(QMainWindow):
             'window_title': "Starknet [DEGENSOFT]",
             'language_label': "Language",
             'api_key_label': "API Key (you can get it via <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
+            'ls_api_key_label': "API Key from Layerswap.io (you can get it via <a href='https://app.layerswap.io/'>Layerswap</a>)",
             'api_key_checkbox': "hide",
             'private_keys_label': "Private keys file",
             'bridges_label': "Select bridge and source network to transfer ETH to Starknet",
@@ -242,6 +243,7 @@ class MainWindow(QMainWindow):
             'window_title': "Starknet [DEGENSOFT]",
             'language_label': "Язык",
             'api_key_label': "API ключ (вы можете получить его через <a href='http://t.me/degensoftbot'>@DegenSoftBot</a>)",
+            'ls_api_key_label': "API ключ от Layerswap.io (вы можете получить его через <a href='https://app.layerswap.io/'>Layerswap</a>)",
             'api_key_checkbox': "скрыть",
             'private_keys_label': "Файл приватных ключей",
             'bridges_label': "Выберите мост и сеть в которой у вас есть ETH для перевода в Starknet",
@@ -432,13 +434,24 @@ class MainWindow(QMainWindow):
         settings_layout.addWidget(api_key_label)
         api_key_field = QLineEdit()
         api_key_field.setEchoMode(QLineEdit.Password)
+        ls_api_key_label = QLabel()
+        ls_api_key_label.setOpenExternalLinks(True)
+        ls_api_key_field = QLineEdit()
+        ls_api_key_field.setEchoMode(QLineEdit.Password)
         api_key_checkbox = QCheckBox()
         api_key_checkbox.setChecked(True)
         api_key_layout.addWidget(api_key_field)
         api_key_layout.addWidget(api_key_checkbox)
         settings_layout.addLayout(api_key_layout)
+        settings_layout.addWidget(ls_api_key_label)
+        ls_api_key_layout = QHBoxLayout()
+        ls_api_key_layout.addWidget(ls_api_key_field)
+        settings_layout.addLayout(ls_api_key_layout)
         self.widgets_tr['api_key_label'] = api_key_label
+        self.widgets_tr['ls_api_key_label'] = ls_api_key_label
+        
         self.widgets_config['api_key'] = api_key_field
+        self.widgets_config['ls_api_key'] = ls_api_key_field
         self.widgets_tr['api_key_checkbox'] = api_key_checkbox
         api_key_checkbox.stateChanged.connect(self.on_hide_checkbox_changed)
         self.widgets_config['api_key_checkbox'] = api_key_checkbox
@@ -1010,7 +1023,7 @@ class MainWindow(QMainWindow):
                                                   options=options)
         if fileName:
             cfg = self.get_config()
-            for key in ('api_key', 'decrypt_wallets_label', 'file_name', 'selected_configs_entry',
+            for key in ('api_key', 'ls_api_key', 'decrypt_wallets_label', 'file_name', 'selected_configs_entry',
                         'gas_limit_spinner', 'gas_limit_checkbox', 'shuffle_checkbox',
                         'wallet_delay_min_sec', 'wallet_delay_max_sec',
                         'project_delay_min_sec', 'project_delay_max_sec'):
@@ -1054,7 +1067,7 @@ def main():
         app = QApplication(sys.argv)
         # app.setStyle(QStyleFactory.create('Windows'))
         main_window = MainWindow()
-        main_window.setMinimumSize(650, 600)
+        main_window.setMinimumSize(650, 700)
         frame_geometry = main_window.frameGeometry()
         center_point = QDesktopWidget().availableGeometry().center()
         frame_geometry.moveCenter(center_point)
